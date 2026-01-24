@@ -1,5 +1,7 @@
 #!/bin/sh
+set -e
+
 
 git clone "$GIT_REPOSITORY_URL" /home/app/output
 
-exec go run src/main.go
+exec /home/app/app
