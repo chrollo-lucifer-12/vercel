@@ -21,6 +21,10 @@ func GetPath(path []string) string {
 
 	dir := filepath.Join(path...)
 
+	if !filepath.IsAbs(dir) {
+		dir = string(os.PathSeparator) + dir
+	}
+
 	if runtime.GOOS == "windows" {
 
 		if len(path) > 0 && strings.Contains(path[0], ":") {
