@@ -1,29 +1,22 @@
 FROM ubuntu:focal
 
+RUN apt-get update
+RUN apt-get install -y curl
+RUN curl -sL https://deb.nodesource.com/setup_20.x | bash -
+RUN apt-get upgrade -y
+RUN apt-get install -y nodejs
 
-RUN apt-get update && \
-    apt-get install -y curl git ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
-
-ENV GO_VERSION=1.22.1
-
-RUN curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -o go.tar.gz && \
-    tar -C /usr/local -xzf go.tar.gz && \
-    rm go.tar.gz
-
-
-ENV PATH="/usr/local/go/bin:${PATH}"
-ENV GOPATH=/go
-ENV PATH="$GOPATH/bin:${PATH}"
+RUN apt-get install git -y
 
 WORKDIR /home/app
 
-
 COPY main.sh main.sh
-COPY . .
+COPY script.js script.js
+COPY package*.json .
+
+RUN npm install
 
 RUN chmod +x main.sh
+RUN chmod +x script.js
 
-RUN go mod download
-
-ENTRYPOINT ["/home/app/main.sh"]
+ENTRYPOINT [ "/home/app/main.sh" ]

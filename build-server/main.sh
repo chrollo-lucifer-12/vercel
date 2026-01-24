@@ -1,6 +1,5 @@
 #!/bin/sh
 
-export GIT_REPOSITORY_URL= "$GIT_REPOSITORY_URL"
 git clone "$GIT_REPOSITORY_URL" /home/app/output
 
-exec go run main.go
+exec node index.js
