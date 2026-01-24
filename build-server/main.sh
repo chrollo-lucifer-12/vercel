@@ -2,4 +2,4 @@
 
 git clone "$GIT_REPOSITORY_URL" /home/app/output
 
-exec node index.js
+exec go run src/main.go

@@ -1,0 +1,45 @@
+package env
+
+import (
+	"fmt"
+	"os"
+	"strings"
+)
+
+type EnvVars struct {
+	API_URL            string
+	API_KEY            string
+	BUCKET_ID          string
+	GIT_REPOSITORY_URL string
+}
+
+func NewEnv() (*EnvVars, error) {
+	env := &EnvVars{}
+
+	required := []string{
+		"GIT_REPOSITORY_URL",
+		"API_URL",
+		"API_KEY",
+		"BUCKET_ID",
+	}
+
+	for _, key := range required {
+		val, ok := os.LookupEnv(key)
+		if !ok || strings.TrimSpace(val) == "" {
+			return nil, fmt.Errorf("missing required env var: %s", key)
+		}
+
+		switch key {
+		case "GIT_REPOSITORY_URL":
+			env.GIT_REPOSITORY_URL = val
+		case "API_URL":
+			env.API_URL = val
+		case "API_KEY":
+			env.API_KEY = val
+		case "BUCKET_ID":
+			env.BUCKET_ID = val
+		}
+	}
+
+	return env, nil
+}
