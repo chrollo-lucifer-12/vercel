@@ -1,7 +1,11 @@
 package main
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/supabase-community/supabase-go"
+	"golang.org/x/sync/errgroup"
 )
 
 type UploadClient struct {
@@ -61,7 +66,44 @@ func NewUploadClient(apiUrl, apiKey string) (*UploadClient, error) {
 	return &UploadClient{client: client}, nil
 }
 
-func (u *UploadClient) uploadFile(baseDir, filename, bucketID, slug string) error {
+func getGitSlug(url string) (string, error) {
+	parts := strings.Split(url, "/")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid git url: %s", url)
+	}
+	return strings.TrimSuffix(parts[len(parts)-1], ".git"), nil
+}
+
+func fileHash(path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(h.Sum(nil)), nil
+}
+
+func runNpmCommand(dir string, args ...string) error {
+	npm := "npm"
+	if runtime.GOOS == "windows" {
+		npm = "npm.cmd"
+	}
+
+	cmd := exec.Command(npm, args...)
+	cmd.Dir = dir
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
+func (u *UploadClient) uploadFile(ctx context.Context, baseDir, filename, bucketID, slug string) error {
 	file, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -84,7 +126,7 @@ func (u *UploadClient) uploadFile(baseDir, filename, bucketID, slug string) erro
 	return err
 }
 
-func uploadBuild(u *UploadClient, bucketID, slug string) error {
+func uploadBuild(u *UploadClient, ctx context.Context, bucketID, slug string) error {
 	buildPath := filepath.Join("home", "app", "output", "dist")
 	if runtime.GOOS == "windows" {
 		buildPath = filepath.Join("C:", "home", "app", "output", "dist")
@@ -95,52 +137,44 @@ func uploadBuild(u *UploadClient, bucketID, slug string) error {
 		return err
 	}
 
-	contents, err := os.ReadDir(absBuildDir)
+	files := []string{}
+	err = filepath.WalkDir(absBuildDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		files = append(files, path)
+		return nil
+	})
 	if err != nil {
 		return err
 	}
 
-	for _, entry := range contents {
-		if entry.IsDir() {
-			continue
-		}
+	g, ctx := errgroup.WithContext(ctx)
+	g.SetLimit(5)
 
-		filePath := filepath.Join(absBuildDir, entry.Name())
-		fmt.Println("Uploading:", entry.Name())
+	for _, fp := range files {
+		fp := fp
 
-		if err := u.uploadFile(absBuildDir, filePath, bucketID, slug); err != nil {
-			return err
-		}
+		g.Go(func() error {
+			if err := u.uploadFile(ctx, absBuildDir, fp, bucketID, slug); err != nil {
+				return err
+			}
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return err
 	}
 
 	return nil
 }
 
-func runNpmCommand(dir string, args ...string) error {
-	npm := "npm"
-	if runtime.GOOS == "windows" {
-		npm = "npm.cmd"
-	}
-
-	cmd := exec.Command(npm, args...)
-	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd.Run()
-}
-
-func getGitSlug(url string) (string, error) {
-	parts := strings.Split(url, "/")
-	if len(parts) < 2 {
-		return "", fmt.Errorf("invalid git url: %s", url)
-	}
-
-	projectName := strings.TrimSuffix(parts[len(parts)-1], ".git")
-	return projectName, nil
-}
-
 func main() {
+	ctx := context.Background()
 	env, err := NewEnv()
 	if err != nil {
 		fmt.Println("env error:", err)
@@ -176,7 +210,7 @@ func main() {
 		return
 	}
 
-	if err := uploadBuild(client, env.BUCKET_ID, slug); err != nil {
+	if err := uploadBuild(client, ctx, env.BUCKET_ID, slug); err != nil {
 		fmt.Println("upload failed:", err)
 		return
 	}
