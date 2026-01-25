@@ -13,6 +13,8 @@ on:
         required: true
       bucketId:
         required: true
+      redisURL:
+        required: true
 
 jobs:
   build:
@@ -21,4 +23,4 @@ jobs:
     steps:
       - name: Run container
         run: |
-          docker run --rm -e SLUG="${{ github.event.inputs.projectSlug }}" -e GIT_REPOSITORY_URL="${{ github.event.inputs.gitURL }}" -e API_URL="${{ github.event.inputs.apiURL }}" -e API_KEY="${{ github.event.inputs.apiKey }}" -e BUCKET_ID="${{ github.event.inputs.bucketId }}" sahil1107/builder-server:latest
+          docker run --rm -e REDIS_URL="{{ github.event.inputs.redisURL }}" -e SLUG="${{ github.event.inputs.projectSlug }}" -e GIT_REPOSITORY_URL="${{ github.event.inputs.gitURL }}" -e API_URL="${{ github.event.inputs.apiURL }}" -e API_KEY="${{ github.event.inputs.apiKey }}" -e BUCKET_ID="${{ github.event.inputs.bucketId }}" sahil1107/builder-server:latest

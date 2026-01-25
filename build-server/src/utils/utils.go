@@ -1,12 +1,17 @@
 package utils
 
 import (
+	"bufio"
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
+
+	"github.com/chrollo-lucifer-12/build-server/src/redis"
 )
 
 func GetGitSlug(url string) (string, error) {
@@ -37,7 +42,14 @@ func GetPath(path []string) string {
 	return dir
 }
 
-func RunNpmCommand(dir string, args ...string) error {
+func RunNpmCommand(
+	ctx context.Context,
+	redisClient *redis.RedisClient,
+	channel string,
+	dir string,
+	args ...string,
+) error {
+
 	npm := "npm"
 	if runtime.GOOS == "windows" {
 		npm = "npm.cmd"
@@ -45,8 +57,42 @@ func RunNpmCommand(dir string, args ...string) error {
 
 	cmd := exec.Command(npm, args...)
 	cmd.Dir = dir
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 
-	return cmd.Run()
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return err
+	}
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	go publishLogs(ctx, redisClient, channel, "stdout", stdout)
+
+	go publishLogs(ctx, redisClient, channel, "stderr", stderr)
+
+	return cmd.Wait()
+}
+
+func publishLogs(
+	ctx context.Context,
+	redisClient *redis.RedisClient,
+	channel string,
+	source string,
+	reader io.Reader,
+) {
+	scanner := bufio.NewScanner(reader)
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		msg := fmt.Sprintf("[%s] %s", source, line)
+
+		redisClient.PublishLog(ctx, msg, channel)
+	}
 }

@@ -12,6 +12,7 @@ type EnvVars struct {
 	BUCKET_ID          string
 	GIT_REPOSITORY_URL string
 	SLUG               string
+	REDIS_URL          string
 }
 
 func NewEnv() (*EnvVars, error) {
@@ -23,6 +24,7 @@ func NewEnv() (*EnvVars, error) {
 		"API_KEY",
 		"BUCKET_ID",
 		"SLUG",
+		"REDIS_URL",
 	}
 
 	for _, key := range required {
@@ -42,6 +44,8 @@ func NewEnv() (*EnvVars, error) {
 			env.BUCKET_ID = val
 		case "SLUG":
 			env.SLUG = val
+		case "REDIS_URL":
+			env.REDIS_URL = val
 		}
 	}
 

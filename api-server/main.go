@@ -45,6 +45,7 @@ func triggerWorkflow(gitURL, projectSlug string) error {
 	token := os.Getenv("GITHUB_TOKEN")
 	apiURL := os.Getenv("API_URL")
 	apiKey := os.Getenv("API_KEY")
+	redisURL := os.Getenv("REDIS_URL")
 
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
@@ -63,6 +64,7 @@ func triggerWorkflow(gitURL, projectSlug string) error {
 		"apiKey":      apiKey,
 		"bucketId":    "builds",
 		"projectSlug": projectSlug,
+		"redisURL":    redisURL,
 	}
 
 	event := github.CreateWorkflowDispatchEventRequest{
