@@ -1,2 +1,5 @@
 build-server/.env
 build-server/docker-compose.yml
+
+
+api-server/.env
