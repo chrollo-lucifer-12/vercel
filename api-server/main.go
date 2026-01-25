@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/chrollo-lucifer-12/api-server/redis"
+	"github.com/chrollo-lucifer-12/api-server/ws"
 	"github.com/google/go-github/v59/github"
 	"github.com/joho/godotenv"
 	"github.com/sio/coolname"
@@ -47,6 +49,13 @@ func triggerWorkflow(gitURL, projectSlug string) error {
 	apiKey := os.Getenv("API_KEY")
 	redisURL := os.Getenv("REDIS_URL")
 
+	r, err := redis.NewRedisClient(redisURL)
+	if err != nil {
+		return err
+	}
+
+	go r.SubscribeChannel(ctx, "logs:"+projectSlug)
+
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
 	)
@@ -72,7 +81,7 @@ func triggerWorkflow(gitURL, projectSlug string) error {
 		Inputs: inputs,
 	}
 
-	_, err := client.Actions.CreateWorkflowDispatchEventByFileName(ctx, owner, repo, workflowFile, event)
+	_, err = client.Actions.CreateWorkflowDispatchEventByFileName(ctx, owner, repo, workflowFile, event)
 
 	return err
 }
@@ -82,6 +91,7 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+	http.HandleFunc("/ws", ws.WsHandler)
 	http.HandleFunc("/project", projectHandler)
 
 	log.Fatal(http.ListenAndServe(":9000", nil))

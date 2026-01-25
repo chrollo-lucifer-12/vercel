@@ -4,6 +4,8 @@ import (
 	"context"
 	"log"
 
+	"github.com/chrollo-lucifer-12/api-server/ws"
+	"github.com/gorilla/websocket"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -45,11 +47,16 @@ func (r *RedisClient) SubscribeChannel(ctx context.Context, channel string) {
 				return
 			}
 
-			log.Printf("received from %s: %s\n", msg.Channel, msg.Payload)
+			ws.WsMu.Lock()
+			for c := range ws.WsClients {
+				c.WriteMessage(websocket.TextMessage, []byte(msg.Payload))
+			}
+			ws.WsMu.Unlock()
 
 		case <-ctx.Done():
 			log.Println("redis subscription context cancelled")
 			return
 		}
 	}
+
 }
