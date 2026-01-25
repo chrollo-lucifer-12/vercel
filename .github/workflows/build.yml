@@ -21,6 +21,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Run container
+      - name: Install Redis CLI
+        run: sudo apt-get install -y redis-tools
+
+      - name: Run container and stream logs
         run: |
-          docker run --rm -e REDIS_URL="{{ github.event.inputs.redisURL }}" -e SLUG="${{ github.event.inputs.projectSlug }}" -e GIT_REPOSITORY_URL="${{ github.event.inputs.gitURL }}" -e API_URL="${{ github.event.inputs.apiURL }}" -e API_KEY="${{ github.event.inputs.apiKey }}" -e BUCKET_ID="${{ github.event.inputs.bucketId }}" sahil1107/builder-server:latest
+          publish() {
+            redis-cli -u "${{ github.event.inputs.redisURL }}" \
+              PUBLISH "logs:${{ github.event.inputs.projectSlug }}" "$1"
+          }
+
+          publish "🚀 Starting build container..."
+
+          docker run --rm \
+            -e REDIS_URL="${{ github.event.inputs.redisURL }}" \
+            -e SLUG="${{ github.event.inputs.projectSlug }}" \
+            -e GIT_REPOSITORY_URL="${{ github.event.inputs.gitURL }}" \
+            -e API_URL="${{ github.event.inputs.apiURL }}" \
+            -e API_KEY="${{ github.event.inputs.apiKey }}" \
+            -e BUCKET_ID="${{ github.event.inputs.bucketId }}" \
+            sahil1107/builder-server:latest \
+            2>&1 | while IFS= read -r line; do
+              publish "$line"
+            done
+
+          publish "✅ Build container finished"
