@@ -5,67 +5,61 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"path"
 	"strings"
 )
 
-const BASE_PATH = "https://swcxwcivbezgmunayqlf.supabase.co/storage/v1/object/public/builds"
+const (
+	PORT      = ":8000"
+	BASE_HOST = "https://swcxwcivbezgmunayqlf.supabase.co"
+	BASE_PATH = "/storage/v1/object/public/builds"
+)
 
 func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		host := r.Host
-		hostName := strings.Split(host, ":")[0]
-		subdomain := strings.Split(hostName, ".")[0]
+	target, err := url.Parse(BASE_HOST)
+	if err != nil {
+		log.Fatal(err)
+	}
 
-		target, err := url.Parse(BASE_PATH)
-		if err != nil {
-			log.Printf("Error parsing URL: %v", err)
-			http.Error(w, "Internal error", http.StatusInternalServerError)
-			return
+	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	proxy.ModifyResponse = func(resp *http.Response) error {
+		resp.Header.Del("Content-Security-Policy")
+
+		path := resp.Request.URL.Path
+
+		switch {
+		case strings.HasSuffix(path, ".html"):
+			resp.Header.Set("Content-Type", "text/html; charset=utf-8")
+		case strings.HasSuffix(path, ".js"):
+			resp.Header.Set("Content-Type", "application/javascript")
+		case strings.HasSuffix(path, ".css"):
+			resp.Header.Set("Content-Type", "text/css")
+		case strings.HasSuffix(path, ".svg"):
+			resp.Header.Set("Content-Type", "image/svg+xml")
 		}
 
-		proxy := httputil.NewSingleHostReverseProxy(target)
+		return nil
+	}
 
-		// Add error handler
-		proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
-			log.Printf("Proxy error: %v", err)
-			http.Error(w, "Bad Gateway", http.StatusBadGateway)
+	proxy.Director = func(req *http.Request) {
+
+		host := strings.Split(req.Host, ":")[0]
+		subdomain := strings.Split(host, ".")[0]
+
+		path := req.URL.Path
+		if path == "/" {
+			path = "/index.html"
 		}
 
-		proxy.Director = func(req *http.Request) {
-			req.URL.Scheme = target.Scheme
-			req.URL.Host = target.Host
-			req.Host = target.Host
+		req.URL.Scheme = target.Scheme
+		req.URL.Host = target.Host
+		req.Host = target.Host
 
-			cleanPath := path.Clean(req.URL.Path)
-			if cleanPath == "/" || cleanPath == "." {
-				cleanPath = "/index.html"
-			}
+		req.URL.Path = BASE_PATH + "/" + subdomain + path
 
-			req.URL.Path = path.Join(target.Path, subdomain, cleanPath)
+		log.Println("→", req.URL.String())
+	}
 
-			// Log the request
-			log.Printf("Proxying: %s -> %s", r.URL.Path, req.URL.String())
-		}
-
-		// Remove CSP headers and add no-cache headers
-		proxy.ModifyResponse = func(resp *http.Response) error {
-			// Remove all CSP headers
-			resp.Header.Del("Content-Security-Policy")
-			resp.Header.Del("Content-Security-Policy-Report-Only")
-			resp.Header.Del("X-Content-Security-Policy")
-
-			// Prevent caching during development
-			resp.Header.Set("Cache-Control", "no-cache, no-store, must-revalidate")
-			resp.Header.Set("Pragma", "no-cache")
-			resp.Header.Set("Expires", "0")
-
-			return nil
-		}
-
-		proxy.ServeHTTP(w, r)
-	})
-
-	log.Println("Server starting on :9000")
-	log.Fatal(http.ListenAndServe(":9000", nil))
+	log.Println("Reverse Proxy running on", PORT)
+	log.Fatal(http.ListenAndServe(PORT, proxy))
 }
