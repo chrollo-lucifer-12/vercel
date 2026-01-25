@@ -17,11 +17,11 @@ func main() {
 		return
 	}
 
-	slug, err := utils.GetGitSlug(env.GIT_REPOSITORY_URL)
-	if err != nil {
-		fmt.Println("slug error:", err)
-		return
-	}
+	// slug, err := utils.GetGitSlug(env.GIT_REPOSITORY_URL)
+	// if err != nil {
+	// 	fmt.Println("slug error:", err)
+	// 	return
+	// }
 
 	client, err := upload.NewUploadClient(env.API_URL, env.API_KEY)
 	if err != nil {
@@ -43,7 +43,7 @@ func main() {
 		return
 	}
 
-	if err := client.UploadBuild(ctx, env.BUCKET_ID, slug); err != nil {
+	if err := client.UploadBuild(ctx, env.BUCKET_ID, env.SLUG); err != nil {
 		fmt.Println("upload failed:", err)
 		return
 	}
