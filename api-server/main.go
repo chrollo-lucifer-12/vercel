@@ -70,7 +70,7 @@ func triggerWorkflow(gitURL, projectSlug string) error {
 	}
 
 	_, err := client.Actions.CreateWorkflowDispatchEventByFileName(ctx, owner, repo, workflowFile, event)
-	log.Fatal(err)
+
 	return err
 }
 
