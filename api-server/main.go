@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"github.com/google/go-github/v59/github"
+	"github.com/joho/godotenv"
 	"github.com/sio/coolname"
 	"golang.org/x/oauth2"
 )
@@ -68,10 +69,15 @@ func triggerWorkflow(gitURL, projectSlug string) error {
 	}
 
 	_, err := client.Actions.CreateWorkflowDispatchEventByFileName(ctx, owner, repo, workflowFile, event)
+	log.Fatal(err)
 	return err
 }
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	http.HandleFunc("/project", projectHandler)
 
 	log.Fatal(http.ListenAndServe(":9000", nil))
