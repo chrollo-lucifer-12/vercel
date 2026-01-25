@@ -7,6 +7,12 @@ on:
         required: true
       projectSlug:
         required: true
+      apiURL:
+        required: true
+      apiKey:
+        required: true
+      bucketId:
+        required: true
 
 jobs:
   build:
