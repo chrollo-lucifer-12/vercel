@@ -57,10 +57,11 @@ func triggerWorkflow(gitURL, projectSlug string) error {
 	workflowFile := "build.yml"
 
 	inputs := map[string]interface{}{
-		"gitURL":   gitURL,
-		"apiURL":   apiURL,
-		"apiKey":   apiKey,
-		"buckerId": "builds",
+		"gitURL":      gitURL,
+		"apiURL":      apiURL,
+		"apiKey":      apiKey,
+		"bucketId":    "builds",
+		"projectSlug": projectSlug,
 	}
 
 	event := github.CreateWorkflowDispatchEventRequest{
