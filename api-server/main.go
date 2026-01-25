@@ -22,6 +22,7 @@ func projectHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewDecoder(r.Body).Decode(&req)
 
 	projectSlug, _ := coolname.Slug()
+
 	gitUrl := req.GithubURL
 
 	err := triggerWorkflow(gitUrl, projectSlug)
