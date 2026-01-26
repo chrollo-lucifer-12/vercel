@@ -57,3 +57,29 @@ func (c *ClickHouseDB) BatchInsertLogs(ctx context.Context, logs []Log) error {
 
 	return tx.Commit()
 }
+
+func (db *ClickHouseDB) GetLogsByDeployment(ctx context.Context, deploymentID string) ([]Log, error) {
+	rows, err := db.conn.QueryContext(ctx, `
+        SELECT  message, level, created_at, deployment_id
+        FROM logs
+        WHERE deployment_id = ?
+        ORDER BY created_at DESC
+        LIMIT 100
+    `, deploymentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []Log
+
+	for rows.Next() {
+		var l Log
+		if err := rows.Scan(&l.Message, &l.Level, &l.CreatedAt, &l.DeploymentID); err != nil {
+			return nil, err
+		}
+		logs = append(logs, l)
+	}
+
+	return logs, nil
+}

@@ -46,7 +46,7 @@ func main() {
 
 	w := workflow.NewWorkflowClient(ctx)
 
-	h, err := server.NewServerClient(w, db)
+	h, err := server.NewServerClient(w, db, c)
 	if err != nil {
 		log.Fatal(err)
 		return

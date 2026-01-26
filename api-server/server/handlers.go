@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/chrollo-lucifer-12/api-server/models"
 	"github.com/google/uuid"
@@ -141,4 +142,30 @@ func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
 		"name": project.Name,
 		"id":   project.ID.String(),
 	})
+}
+
+func (h *ServerClient) logsHandler(w http.ResponseWriter, r *http.Request) {
+
+	path := r.URL.Path
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 3 || parts[1] != "logs" {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	deploymentID := parts[2]
+	if deploymentID == "" {
+		http.Error(w, "deployment_id is required", http.StatusBadRequest)
+		return
+	}
+
+	logs, err := h.clickDB.GetLogsByDeployment(r.Context(), deploymentID)
+	if err != nil {
+		http.Error(w, "failed to fetch logs", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(logs)
 }
