@@ -12,7 +12,7 @@ type Base struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
 	CreatedAt time.Time `gorm:"autoCreateTime"`
 	UpdatedAt time.Time `gorm:"autoUpdateTime"`
-	DeleteAt  time.Time `gorm:"index"`
+	DeletedAt time.Time `gorm:"index"`
 }
 
 func (b *Base) BeforeCreate(tx *gorm.DB) error {

@@ -27,7 +27,7 @@ func main() {
 
 	ctx := context.Background()
 
-	_, err = models.NewDB(e.DSN, ctx)
+	db, err := models.NewDB(e.DSN, ctx)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -42,7 +42,7 @@ func main() {
 
 	w := workflow.NewWorkflowClient(ctx, r)
 
-	h, err := server.NewServerClient(w)
+	h, err := server.NewServerClient(w, db)
 	if err != nil {
 		log.Fatal(err)
 		return
