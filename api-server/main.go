@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"log"
-	"os"
 
+	"github.com/chrollo-lucifer-12/api-server/env"
 	"github.com/chrollo-lucifer-12/api-server/models"
 	"github.com/chrollo-lucifer-12/api-server/redis"
 	"github.com/chrollo-lucifer-12/api-server/server"
@@ -16,19 +16,24 @@ func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
+		return
 	}
 
-	redisURL := os.Getenv("REDIS_URL")
-	dsn := os.Getenv("DSN")
-	ctx := context.Background()
-
-	_, err = models.NewDB(dsn, ctx)
+	e, err := env.NewEnv()
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	r, err := redis.NewRedisClient(redisURL)
+	ctx := context.Background()
+
+	_, err = models.NewDB(e.DSN, ctx)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	r, err := redis.NewRedisClient(e.REDIS_URL)
 
 	if err != nil {
 		log.Fatal(err)
