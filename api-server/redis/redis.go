@@ -5,20 +5,22 @@ import (
 	"log"
 	"time"
 
+	"github.com/chrollo-lucifer-12/api-server/clickhouse"
 	"github.com/redis/go-redis/v9"
 )
 
 type RedisClient struct {
-	redis *redis.Client
+	redis   *redis.Client
+	clickDB *clickhouse.ClickHouseDB
 }
 
-func NewRedisClient(url string) (*RedisClient, error) {
+func NewRedisClient(url string, clickDB *clickhouse.ClickHouseDB) (*RedisClient, error) {
 	opt, err := redis.ParseURL(url)
 	if err != nil {
 		return nil, err
 	}
 	client := redis.NewClient(opt)
-	return &RedisClient{redis: client}, nil
+	return &RedisClient{redis: client, clickDB: clickDB}, nil
 }
 
 func (r *RedisClient) SubscribeStreams(ctx context.Context, stream string) {
@@ -51,6 +53,8 @@ func (r *RedisClient) SubscribeStreams(ctx context.Context, stream string) {
 			continue
 		}
 
+		var logs []clickhouse.Log
+
 		for _, msg := range res[0].Messages {
 			lastId = msg.ID
 			level, _ := msg.Values["level"]
@@ -58,7 +62,18 @@ func (r *RedisClient) SubscribeStreams(ctx context.Context, stream string) {
 			createdAt, _ := msg.Values["created_at"]
 			deploymentId, _ := msg.Values["deployment_id"]
 
-			log.Println(level, message, createdAt, deploymentId)
+			logs = append(logs, clickhouse.Log{
+				Level:        level.(string),
+				Message:      message.(string),
+				CreatedAt:    createdAt.(string),
+				DeploymentID: deploymentId.(string),
+			})
+		}
+
+		if len(logs) > 0 {
+			if err := r.clickDB.BatchInsertLogs(ctx, logs); err != nil {
+				log.Println("clickhouse insert error:", err)
+			}
 		}
 	}
 }

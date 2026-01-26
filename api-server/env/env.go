@@ -7,11 +7,14 @@ import (
 )
 
 type EnvVars struct {
-	GITHUB_TOKEN string
-	API_URL      string
-	API_KEY      string
-	REDIS_URL    string
-	DSN          string
+	GITHUB_TOKEN        string
+	API_URL             string
+	API_KEY             string
+	REDIS_URL           string
+	DSN                 string
+	CLICKHOUSE_ADDR     string
+	CLICKHOUSE_USERNAME string
+	CLICKHOUSE_PASSWORD string
 }
 
 func NewEnv() (*EnvVars, error) {
@@ -23,6 +26,9 @@ func NewEnv() (*EnvVars, error) {
 		"API_KEY",
 		"DSN",
 		"REDIS_URL",
+		"CLICKHOUSE_ADDR",
+		"CLICKHOUSE_USERNAME",
+		"CLICKHOUSE_PASSWORD",
 	}
 
 	for _, key := range required {
@@ -42,6 +48,12 @@ func NewEnv() (*EnvVars, error) {
 			env.DSN = val
 		case "REDIS_URL":
 			env.REDIS_URL = val
+		case "CLICKHOUSE_ADDR":
+			env.CLICKHOUSE_ADDR = val
+		case "CLICKHOUSE_USERNAME":
+			env.CLICKHOUSE_USERNAME = val
+		case "CLICKHOUSE_PASSWORD":
+			env.CLICKHOUSE_PASSWORD = val
 		}
 	}
 

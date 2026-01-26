@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 
+	"github.com/chrollo-lucifer-12/api-server/clickhouse"
 	"github.com/chrollo-lucifer-12/api-server/env"
 	"github.com/chrollo-lucifer-12/api-server/models"
 	"github.com/chrollo-lucifer-12/api-server/redis"
@@ -27,7 +28,9 @@ func main() {
 
 	ctx := context.Background()
 
-	r, err := redis.NewRedisClient(e.REDIS_URL)
+	c := clickhouse.NewClickHouseDB(e.CLICKHOUSE_ADDR, e.CLICKHOUSE_USERNAME, e.CLICKHOUSE_PASSWORD)
+
+	r, err := redis.NewRedisClient(e.REDIS_URL, c)
 	if err != nil {
 		log.Fatal(err)
 		return
