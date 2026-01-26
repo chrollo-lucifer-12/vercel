@@ -9,6 +9,7 @@ import (
 	"github.com/chrollo-lucifer-12/api-server/models"
 	"github.com/google/uuid"
 	"github.com/sio/coolname"
+	"gorm.io/gorm"
 )
 
 type DeployRequest struct {
@@ -52,10 +53,49 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	d, err := gorm.G[models.Deployment](h.db.Raw()).Where("project_id = ?", project.ID).Where("status IN ?", []string{"QUEUED", "PENDING"}).Find(ctx)
+	if err != nil {
+		http.Error(w, "failed to fetch deployment "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	if len(d) > 0 {
+		http.Error(w, "another deployment is running", http.StatusConflict)
+		return
+	}
+
+	tx := h.db.Raw().Begin()
+	if tx.Error != nil {
+		http.Error(w, "failed to start transaction", http.StatusInternalServerError)
+		return
+	}
+
+	dep := &models.Deployment{
+		ProjectID: projectIDUUID,
+		Status:    "QUEUED",
+	}
+
+	if err := tx.Create(dep).Error; err != nil {
+		tx.Rollback()
+		http.Error(w, "failed to create deployment: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		http.Error(w, "failed to commit transaction: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
 	projectSlug := project.SubDomain
 	gitUrl := project.GitUrl
 
 	if err := h.wClient.TriggerWorkflow(ctx, gitUrl, projectSlug); err != nil {
+
+		_ = h.db.Raw().Model(&models.Deployment{}).
+			Where("id = ?", dep.ID).
+			Update("status", "FAILED")
+
 		http.Error(w, "failed to trigger workflow: "+err.Error(), http.StatusInternalServerError)
 		return
 	}

@@ -29,6 +29,10 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 	return &DB{db: db}, nil
 }
 
+func (d *DB) Raw() *gorm.DB {
+	return d.db
+}
+
 func (d *DB) CreateProject(ctx context.Context, project *Project) error {
 	return gorm.G[Project](d.db).Create(ctx, project)
 }
