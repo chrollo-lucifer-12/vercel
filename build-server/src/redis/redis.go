@@ -2,6 +2,8 @@ package redis
 
 import (
 	"context"
+	"fmt"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -19,6 +21,20 @@ func NewRedisClient(url string) (*RedisClient, error) {
 	return &RedisClient{redis: client}, nil
 }
 
-func (r *RedisClient) PublishLog(ctx context.Context, log string, channel string) {
-	r.redis.Publish(ctx, channel, log)
+func (r *RedisClient) PublishLog(ctx context.Context, log string, deployment_id string, level string) {
+
+	_, err := r.redis.XAdd(ctx, &redis.XAddArgs{
+		Stream: "logs_stream",
+		ID:     "*",
+		Values: map[string]interface{}{
+			"level":         level,
+			"message":       log,
+			"created_at":    time.Now().UnixMilli(),
+			"deployment_id": deployment_id,
+		},
+	}).Result()
+
+	if err != nil {
+		fmt.Println(err)
+	}
 }

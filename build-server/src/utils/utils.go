@@ -93,6 +93,6 @@ func publishLogs(
 
 		msg := fmt.Sprintf("[%s] %s", source, line)
 
-		redisClient.PublishLog(ctx, msg, channel)
+		redisClient.PublishLog(ctx, msg, channel, "INFO")
 	}
 }

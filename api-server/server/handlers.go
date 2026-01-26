@@ -90,7 +90,7 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 	projectSlug := project.SubDomain
 	gitUrl := project.GitUrl
 
-	if err := h.wClient.TriggerWorkflow(ctx, gitUrl, projectSlug); err != nil {
+	if err := h.wClient.TriggerWorkflow(ctx, gitUrl, projectSlug, dep.ID.String()); err != nil {
 
 		_ = h.db.Raw().Model(&models.Deployment{}).
 			Where("id = ?", dep.ID).
