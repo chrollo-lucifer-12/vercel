@@ -7,7 +7,6 @@ import (
 
 	"github.com/chrollo-lucifer-12/api-server/models"
 	"github.com/chrollo-lucifer-12/api-server/workflow"
-	"github.com/chrollo-lucifer-12/api-server/ws"
 )
 
 type ServerClient struct {
@@ -23,7 +22,6 @@ func NewServerClient(wClient *workflow.WorkflowClient, db *models.DB) (*ServerCl
 }
 
 func (h *ServerClient) StartHTTP() {
-	http.HandleFunc("/ws", ws.WsHandler)
 	http.HandleFunc("/deploy", h.deployHandler)
 	http.HandleFunc("/project", h.projectHandler)
 	log.Fatal(http.ListenAndServe(":9000", nil))

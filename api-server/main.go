@@ -27,20 +27,21 @@ func main() {
 
 	ctx := context.Background()
 
+	r, err := redis.NewRedisClient(e.REDIS_URL)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	go r.SubscribeStreams(ctx, "logs_stream")
+
 	db, err := models.NewDB(e.DSN, ctx)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
 
-	r, err := redis.NewRedisClient(e.REDIS_URL)
-
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	w := workflow.NewWorkflowClient(ctx, r)
+	w := workflow.NewWorkflowClient(ctx)
 
 	h, err := server.NewServerClient(w, db)
 	if err != nil {

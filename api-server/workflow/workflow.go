@@ -4,17 +4,15 @@ import (
 	"context"
 	"os"
 
-	"github.com/chrollo-lucifer-12/api-server/redis"
 	"github.com/google/go-github/v59/github"
 	"golang.org/x/oauth2"
 )
 
 type WorkflowClient struct {
 	wClient *github.Client
-	rClient *redis.RedisClient
 }
 
-func NewWorkflowClient(ctx context.Context, rClient *redis.RedisClient) *WorkflowClient {
+func NewWorkflowClient(ctx context.Context) *WorkflowClient {
 	token := os.Getenv("GITHUB_TOKEN")
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: token},
@@ -22,7 +20,7 @@ func NewWorkflowClient(ctx context.Context, rClient *redis.RedisClient) *Workflo
 	tc := oauth2.NewClient(ctx, ts)
 
 	client := github.NewClient(tc)
-	return &WorkflowClient{wClient: client, rClient: rClient}
+	return &WorkflowClient{wClient: client}
 }
 
 func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, gitURL, projectSlug string, deployment_id string) error {
@@ -32,8 +30,6 @@ func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, gitURL, projectSlu
 	owner := "chrollo-lucifer-12"
 	repo := "vercel"
 	workflowFile := "build.yml"
-
-	go w.rClient.SubscribeChannel(ctx, "logs:"+projectSlug)
 
 	inputs := map[string]interface{}{
 		"gitURL":       gitURL,

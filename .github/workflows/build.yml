@@ -29,8 +29,12 @@ jobs:
       - name: Run container and stream logs
         run: |
           publish() {
-            redis-cli -u "${{ github.event.inputs.redisURL }}" \
-              PUBLISH "logs:${{ github.event.inputs.projectSlug }}" "$1"
+                redis-cli -u "${{ github.event.inputs.redisURL }}" \
+                  XADD logs_stream * \
+                    level "INFO" \
+                    message "$1" \
+                    created_at "$(date +%s%3N)" \
+                    deployment_id "${{ github.event.inputs.deploymentId }}"
           }
 
           publish "🚀 Starting build container..."
