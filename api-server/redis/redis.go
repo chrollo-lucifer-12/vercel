@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"log"
+	"strconv"
 	"strings"
 	"time"
 
@@ -126,11 +127,13 @@ func (r *RedisClient) SubscribeProxyLogs(ctx context.Context, stream string) {
 			path := parts[2]
 			statusCode := parts[1]
 
-			viewDate, err := time.Parse(time.RFC3339, viewDateStr.(string))
+			ts, err := strconv.ParseInt(viewDateStr.(string), 10, 64)
 			if err != nil {
-				log.Println("invalid date format:", viewDateStr)
+				log.Println("invalid timestamp:", viewDateStr)
 				continue
 			}
+
+			viewDate := time.Unix(ts, 0)
 
 			views = append(views, clickhouse.View{
 				DeploymentID: deploymentId.(string),

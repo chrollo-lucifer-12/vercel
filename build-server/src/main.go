@@ -79,5 +79,6 @@ func main() {
 
 	r.PublishLog(ctx, "upload completed", env.DEPLOYMENT_ID, "INFO")
 	fmt.Println("Upload complete!")
+
 	os.Exit(0)
 }
