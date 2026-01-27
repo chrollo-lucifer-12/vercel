@@ -19,6 +19,17 @@ func main() {
 		return
 	}
 
+	userEnv, err := utils.ParseUserEnv(env.USER_ENV)
+	if err != nil {
+		fmt.Println("user env parse error:", err)
+		return
+	}
+
+	if err := utils.WriteEnvFile("/home/app/output", userEnv); err != nil {
+		fmt.Println("write env file error:", err)
+		return
+	}
+
 	r, err := redis.NewRedisClient(env.REDIS_URL)
 	if err != nil {
 		fmt.Println("redis client error:", err)

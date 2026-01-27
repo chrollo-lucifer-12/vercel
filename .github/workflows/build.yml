@@ -17,6 +17,8 @@ on:
         required: true
       deploymentId:
         required: true
+      userEnv:
+        required: true
 
 jobs:
   build:
@@ -40,6 +42,7 @@ jobs:
           publish "🚀 Starting build container..."
 
           docker run --rm \
+            -e USER_ENV="{{ github.event.inputs.userEnv }}"
             -e DEPLOYMENT_ID="{{ github.event.inputs.deploymentId }}"
             -e REDIS_URL="${{ github.event.inputs.redisURL }}" \
             -e SLUG="${{ github.event.inputs.projectSlug }}" \

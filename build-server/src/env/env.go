@@ -14,6 +14,7 @@ type EnvVars struct {
 	SLUG               string
 	REDIS_URL          string
 	DEPLOYMENT_ID      string
+	USER_ENV           string
 }
 
 func NewEnv() (*EnvVars, error) {
@@ -27,6 +28,7 @@ func NewEnv() (*EnvVars, error) {
 		"SLUG",
 		"REDIS_URL",
 		"DEPLOYMENT_ID",
+		"USER_ENV",
 	}
 
 	for _, key := range required {
@@ -50,6 +52,8 @@ func NewEnv() (*EnvVars, error) {
 			env.REDIS_URL = val
 		case "DEPLOYMENT_ID":
 			env.DEPLOYMENT_ID = val
+		case "USER_ENV":
+			env.USER_ENV = val
 		}
 	}
 

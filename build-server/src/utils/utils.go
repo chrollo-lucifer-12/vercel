@@ -3,6 +3,7 @@ package utils
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -95,4 +96,22 @@ func publishLogs(
 
 		redisClient.PublishLog(ctx, msg, channel, "INFO")
 	}
+}
+
+func ParseUserEnv(jsonStr string) (map[string]string, error) {
+	var envVars map[string]string
+	err := json.Unmarshal([]byte(jsonStr), &envVars)
+	if err != nil {
+		return nil, err
+	}
+	return envVars, nil
+}
+
+func WriteEnvFile(dir string, envVars map[string]string) error {
+	path := filepath.Join(dir, ".env")
+	content := ""
+	for k, v := range envVars {
+		content += k + "=" + v + "\n"
+	}
+	return os.WriteFile(path, []byte(content), 0644)
 }

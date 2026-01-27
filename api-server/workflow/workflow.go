@@ -23,7 +23,7 @@ func NewWorkflowClient(ctx context.Context) *WorkflowClient {
 	return &WorkflowClient{wClient: client}
 }
 
-func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, gitURL, projectSlug string, deployment_id string) error {
+func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, gitURL, projectSlug string, deployment_id string, user_env string) error {
 	apiURL := os.Getenv("API_URL")
 	apiKey := os.Getenv("API_KEY")
 	redisURL := os.Getenv("REDIS_URL")
@@ -39,6 +39,7 @@ func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, gitURL, projectSlu
 		"projectSlug":  projectSlug,
 		"redisURL":     redisURL,
 		"deploymentId": deployment_id,
+		"userEnv":      user_env,
 	}
 
 	event := github.CreateWorkflowDispatchEventRequest{

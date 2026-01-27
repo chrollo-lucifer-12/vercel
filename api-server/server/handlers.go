@@ -16,6 +16,7 @@ import (
 
 type DeployRequest struct {
 	ProjectID string `json:"project_id"`
+	UserEnv   string `json:"user_env"`
 }
 
 type ProjectRequest struct {
@@ -92,7 +93,7 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 	projectSlug := project.SubDomain
 	gitUrl := project.GitUrl
 
-	if err := h.wClient.TriggerWorkflow(ctx, gitUrl, projectSlug, dep.ID.String()); err != nil {
+	if err := h.wClient.TriggerWorkflow(ctx, gitUrl, projectSlug, dep.ID.String(), req.UserEnv); err != nil {
 
 		_ = h.db.Raw().Model(&models.Deployment{}).
 			Where("id = ?", dep.ID).
