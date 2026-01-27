@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
+
+	"github.com/chrollo-lucider-12/proxy/redis"
+	"github.com/joho/godotenv"
 )
 
 const (
@@ -15,10 +21,21 @@ const (
 )
 
 func main() {
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+		return
+	}
+
+	redisUrl := os.Getenv("REDIS_URL")
+
 	target, err := url.Parse(BASE_HOST)
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	r, _ := redis.NewRedisClient(redisUrl)
 
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
@@ -26,6 +43,17 @@ func main() {
 		resp.Header.Del("Content-Security-Policy")
 
 		path := resp.Request.URL.Path
+
+		go r.PublishLog(
+			context.Background(),
+			fmt.Sprintf(
+				"RESP %d %s",
+				resp.StatusCode,
+				path,
+			),
+			strings.Split(resp.Request.Host, ".")[0],
+			"info",
+		)
 
 		switch {
 		case strings.HasSuffix(path, ".html"):
@@ -56,6 +84,16 @@ func main() {
 		req.Host = target.Host
 
 		req.URL.Path = BASE_PATH + "/" + subdomain + path
+
+		go r.PublishLog(context.Background(), fmt.Sprintf(
+			"%s %s | ip=%s | ua=%s",
+			req.Method,
+			path,
+			req.RemoteAddr,
+			req.UserAgent(),
+		),
+			subdomain,
+			"info")
 
 		log.Println("→", req.URL.String())
 	}

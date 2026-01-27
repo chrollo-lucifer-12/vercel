@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/clickhouse"
@@ -72,6 +73,75 @@ func (r *RedisClient) SubscribeStreams(ctx context.Context, stream string) {
 
 		if len(logs) > 0 {
 			if err := r.clickDB.BatchInsertLogs(ctx, logs); err != nil {
+				log.Println("clickhouse insert error:", err)
+			}
+		}
+	}
+}
+
+func (r *RedisClient) SubscribeProxyLogs(ctx context.Context, stream string) {
+	lastId := "$"
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("redis proxy log subscription context cancelled")
+			return
+		default:
+		}
+
+		res, err := r.redis.XRead(ctx, &redis.XReadArgs{
+			Streams: []string{stream, lastId},
+			Count:   10,
+			Block:   0,
+		}).Result()
+
+		if err != nil {
+			if err == redis.Nil {
+				continue
+			}
+			log.Println("stream read error:", err)
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		if len(res) == 0 {
+			continue
+		}
+
+		var views []clickhouse.View
+
+		for _, msg := range res[0].Messages {
+			lastId = msg.ID
+
+			deploymentId, _ := msg.Values["deployment_id"]
+			message, _ := msg.Values["message"]
+			viewDateStr, _ := msg.Values["created_at"]
+
+			parts := strings.Split(message.(string), " ")
+			if len(parts) < 3 {
+				continue
+			}
+
+			path := parts[2]
+			statusCode := parts[1]
+
+			viewDate, err := time.Parse(time.RFC3339, viewDateStr.(string))
+			if err != nil {
+				log.Println("invalid date format:", viewDateStr)
+				continue
+			}
+
+			views = append(views, clickhouse.View{
+				DeploymentID: deploymentId.(string),
+				Path:         path,
+				ViewDate:     viewDate,
+				Resp:         statusCode,
+			})
+		}
+
+		if len(views) > 0 {
+			if err := r.clickDB.BatchInsertViews(ctx, views); err != nil {
 				log.Println("clickhouse insert error:", err)
 			}
 		}

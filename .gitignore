@@ -5,3 +5,6 @@ build-server/docker-compose.yml
 api-server/.env
 
 socket-server/.env
+
+
+s3-reverse-proxy/.env

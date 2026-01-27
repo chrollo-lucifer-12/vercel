@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/models"
 	"github.com/google/uuid"
@@ -145,7 +146,6 @@ func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServerClient) logsHandler(w http.ResponseWriter, r *http.Request) {
-
 	path := r.URL.Path
 	parts := strings.Split(path, "/")
 
@@ -160,9 +160,78 @@ func (h *ServerClient) logsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logs, err := h.clickDB.GetLogsByDeployment(r.Context(), deploymentID)
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+
+	var fromTime, toTime time.Time
+	var err error
+
+	if from != "" {
+		fromTime, err = time.Parse(time.RFC3339, from)
+		if err != nil {
+			http.Error(w, "invalid 'from' date format (use RFC3339)", http.StatusBadRequest)
+			return
+		}
+	}
+
+	if to != "" {
+		toTime, err = time.Parse(time.RFC3339, to)
+		if err != nil {
+			http.Error(w, "invalid 'to' date format (use RFC3339)", http.StatusBadRequest)
+			return
+		}
+	}
+
+	logs, err := h.clickDB.GetLogsByDeployment(r.Context(), deploymentID, &fromTime, &toTime)
 	if err != nil {
 		http.Error(w, "failed to fetch logs", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(logs)
+}
+
+func (h *ServerClient) analyticsHandler(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 3 || parts[1] != "analytics" {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	deploymentID := parts[2]
+	if deploymentID == "" {
+		http.Error(w, "deployment_id is required", http.StatusBadRequest)
+		return
+	}
+
+	queryParams := r.URL.Query()
+	pagePath := queryParams.Get("path")
+
+	var fromTime, toTime *time.Time
+	if from := queryParams.Get("from"); from != "" {
+		t, err := time.Parse("2006-01-02", from)
+		if err != nil {
+			http.Error(w, "invalid from date (use YYYY-MM-DD)", http.StatusBadRequest)
+			return
+		}
+		fromTime = &t
+	}
+
+	if to := queryParams.Get("to"); to != "" {
+		t, err := time.Parse("2006-01-02", to)
+		if err != nil {
+			http.Error(w, "invalid to date (use YYYY-MM-DD)", http.StatusBadRequest)
+			return
+		}
+		toTime = &t
+	}
+
+	logs, err := h.clickDB.GetAnalyticsByDeployment(r.Context(), deploymentID, pagePath, fromTime, toTime)
+	if err != nil {
+		http.Error(w, "failed to fetch analytics", http.StatusInternalServerError)
 		return
 	}
 

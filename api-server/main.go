@@ -37,6 +37,7 @@ func main() {
 	}
 
 	go r.SubscribeStreams(ctx, "logs_stream")
+	go r.SubscribeProxyLogs(ctx, "analytics_stream")
 
 	db, err := models.NewDB(e.DSN, ctx)
 	if err != nil {

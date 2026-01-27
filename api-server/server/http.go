@@ -27,5 +27,6 @@ func (h *ServerClient) StartHTTP() {
 	http.HandleFunc("/deploy", h.deployHandler)
 	http.HandleFunc("/project", h.projectHandler)
 	http.HandleFunc("/logs/", h.logsHandler)
+	http.HandleFunc("/analytics/", h.analyticsHandler)
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
