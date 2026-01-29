@@ -2,27 +2,28 @@ package redis
 
 import (
 	"context"
+	"encoding/json"
 	"log"
-	"strconv"
-	"strings"
 	"time"
 
-	"github.com/chrollo-lucifer-12/api-server/clickhouse"
+	"github.com/chrollo-lucifer-12/api-server/models"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
+	"gorm.io/datatypes"
 )
 
 type RedisClient struct {
-	redis   *redis.Client
-	clickDB *clickhouse.ClickHouseDB
+	redis *redis.Client
+	db    *models.DB
 }
 
-func NewRedisClient(url string, clickDB *clickhouse.ClickHouseDB) (*RedisClient, error) {
+func NewRedisClient(url string, db *models.DB) (*RedisClient, error) {
 	opt, err := redis.ParseURL(url)
 	if err != nil {
 		return nil, err
 	}
 	client := redis.NewClient(opt)
-	return &RedisClient{redis: client, clickDB: clickDB}, nil
+	return &RedisClient{redis: client, db: db}, nil
 }
 
 func (r *RedisClient) SubscribeStreams(ctx context.Context, stream string) {
@@ -55,7 +56,7 @@ func (r *RedisClient) SubscribeStreams(ctx context.Context, stream string) {
 			continue
 		}
 
-		var logs []clickhouse.Log
+		var logs []models.LogEvent
 
 		for _, msg := range res[0].Messages {
 			lastId = msg.ID
@@ -64,17 +65,24 @@ func (r *RedisClient) SubscribeStreams(ctx context.Context, stream string) {
 			createdAt, _ := msg.Values["created_at"]
 			deploymentId, _ := msg.Values["deployment_id"]
 
-			logs = append(logs, clickhouse.Log{
-				Level:        level.(string),
-				Message:      message.(string),
-				CreatedAt:    createdAt.(string),
-				DeploymentID: deploymentId.(string),
+			createdAtParsed, _ := time.Parse("2006-01-02 15:04:05", createdAt.(string))
+			deploymentIdParsed, _ := uuid.Parse(deploymentId.(string))
+			metadata, _ := json.Marshal(map[string]any{
+				"level": level.(string),
+				"type":  "log",
+			})
+
+			logs = append(logs, models.LogEvent{
+				Log:          message.(string),
+				Base:         models.Base{CreatedAt: createdAtParsed},
+				DeploymentID: deploymentIdParsed,
+				Metadata:     datatypes.JSON(metadata),
 			})
 		}
 
 		if len(logs) > 0 {
-			if err := r.clickDB.BatchInsertLogs(ctx, logs); err != nil {
-				log.Println("clickhouse insert error:", err)
+			if err := r.db.CreateLogEvents(ctx, &logs); err != nil {
+				log.Println("db logs insert error:", err)
 			}
 		}
 	}
@@ -110,42 +118,36 @@ func (r *RedisClient) SubscribeProxyLogs(ctx context.Context, stream string) {
 			continue
 		}
 
-		var views []clickhouse.View
+		var views []models.LogEvent
 
 		for _, msg := range res[0].Messages {
 			lastId = msg.ID
 
 			deploymentId, _ := msg.Values["deployment_id"]
-			message, _ := msg.Values["message"]
 			viewDateStr, _ := msg.Values["created_at"]
+			statusCode, _ := msg.Values["status_code"]
+			path, _ := msg.Values["path"]
+			method, _ := msg.Values["method"]
 
-			parts := strings.Split(message.(string), " ")
-			if len(parts) < 3 {
-				continue
-			}
+			viewDateParsed, _ := time.Parse("2006-01-02 15:04:05", viewDateStr.(string))
+			deploymentIdParsed, _ := uuid.Parse(deploymentId.(string))
+			metadata, _ := json.Marshal(map[string]any{
+				"path":        path.(string),
+				"status_code": statusCode.(string),
+				"method":      method.(string),
+			})
 
-			path := parts[2]
-			statusCode := parts[1]
-
-			ts, err := strconv.ParseInt(viewDateStr.(string), 10, 64)
-			if err != nil {
-				log.Println("invalid timestamp:", viewDateStr)
-				continue
-			}
-
-			viewDate := time.Unix(ts, 0)
-
-			views = append(views, clickhouse.View{
-				DeploymentID: deploymentId.(string),
-				Path:         path,
-				ViewDate:     viewDate,
-				Resp:         statusCode,
+			views = append(views, models.LogEvent{
+				Base:         models.Base{CreatedAt: viewDateParsed},
+				DeploymentID: deploymentIdParsed,
+				Log:          "analytics",
+				Metadata:     datatypes.JSON(metadata),
 			})
 		}
 
 		if len(views) > 0 {
-			if err := r.clickDB.BatchInsertViews(ctx, views); err != nil {
-				log.Println("clickhouse insert error:", err)
+			if err := r.db.CreateLogEvents(ctx, &views); err != nil {
+				log.Println("db logs insert error:", err)
 			}
 		}
 	}

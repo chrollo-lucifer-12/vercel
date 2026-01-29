@@ -21,16 +21,17 @@ func NewRedisClient(url string) (*RedisClient, error) {
 	return &RedisClient{redis: client}, nil
 }
 
-func (r *RedisClient) PublishLog(ctx context.Context, log string, deployment_id string, level string) {
+func (r *RedisClient) PublishLog(ctx context.Context, status_code, slug, path, method string) {
 
 	_, err := r.redis.XAdd(ctx, &redis.XAddArgs{
 		Stream: "analytics_stream",
 		ID:     "*",
 		Values: map[string]interface{}{
-			"level":         level,
-			"message":       log,
-			"created_at":    time.Now().UnixMilli(),
-			"deployment_id": deployment_id,
+			"status_code": status_code,
+			"path":        path,
+			"created_at":  time.Now().Format("2026-29-01 15:04:05"),
+			"slug":        slug,
+			"method":      method,
 		},
 	}).Result()
 

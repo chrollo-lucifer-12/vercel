@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/models"
@@ -147,23 +146,15 @@ func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServerClient) logsHandler(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	parts := strings.Split(path, "/")
 
-	if len(parts) < 3 || parts[1] != "logs" {
-		http.Error(w, "invalid path", http.StatusBadRequest)
-		return
-	}
-
-	deploymentID := parts[2]
+	from := r.URL.Query().Get("from")
+	to := r.URL.Query().Get("to")
+	deploymentID := r.URL.Query().Get("deployment_id")
 	if deploymentID == "" {
 		http.Error(w, "deployment_id is required", http.StatusBadRequest)
 		return
 	}
-
-	from := r.URL.Query().Get("from")
-	to := r.URL.Query().Get("to")
-
+	deploymentIDParsed, _ := uuid.Parse(deploymentID)
 	var fromTime, toTime time.Time
 	var err error
 
@@ -183,7 +174,7 @@ func (h *ServerClient) logsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	logs, err := h.clickDB.GetLogsByDeployment(r.Context(), deploymentID, &fromTime, &toTime)
+	logs, err := h.db.GetLogEventsByDeploymentAndTimeRange(context.Background(), deploymentIDParsed, fromTime, toTime)
 	if err != nil {
 		http.Error(w, "failed to fetch logs", http.StatusInternalServerError)
 		return
@@ -194,31 +185,25 @@ func (h *ServerClient) logsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServerClient) analyticsHandler(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	parts := strings.Split(path, "/")
 
-	if len(parts) < 3 || parts[1] != "analytics" {
-		http.Error(w, "invalid path", http.StatusBadRequest)
-		return
-	}
-
-	deploymentID := parts[2]
+	queryParams := r.URL.Query()
+	pagePath := queryParams.Get("path")
+	statusCode := queryParams.Get("status_code")
+	deploymentID := queryParams.Get("deployment_id")
 	if deploymentID == "" {
 		http.Error(w, "deployment_id is required", http.StatusBadRequest)
 		return
 	}
+	deploymentIDParsed, _ := uuid.Parse(deploymentID)
 
-	queryParams := r.URL.Query()
-	pagePath := queryParams.Get("path")
-
-	var fromTime, toTime *time.Time
+	var fromTime, toTime time.Time
 	if from := queryParams.Get("from"); from != "" {
 		t, err := time.Parse("2006-01-02", from)
 		if err != nil {
 			http.Error(w, "invalid from date (use YYYY-MM-DD)", http.StatusBadRequest)
 			return
 		}
-		fromTime = &t
+		fromTime = t
 	}
 
 	if to := queryParams.Get("to"); to != "" {
@@ -227,15 +212,14 @@ func (h *ServerClient) analyticsHandler(w http.ResponseWriter, r *http.Request) 
 			http.Error(w, "invalid to date (use YYYY-MM-DD)", http.StatusBadRequest)
 			return
 		}
-		toTime = &t
+		toTime = t
 	}
 
-	logs, err := h.clickDB.GetAnalyticsByDeployment(r.Context(), deploymentID, pagePath, fromTime, toTime)
+	logs, err := h.db.GetAnalytics(context.Background(), deploymentIDParsed, fromTime, toTime, statusCode, pagePath)
 	if err != nil {
-		http.Error(w, "failed to fetch analytics", http.StatusInternalServerError)
+		http.Error(w, "failed to fetch logs", http.StatusInternalServerError)
 		return
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(logs)
 }

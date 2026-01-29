@@ -1,16 +1,12 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"strings"
 
-	"github.com/chrollo-lucider-12/proxy/redis"
 	"github.com/joho/godotenv"
 )
 
@@ -21,40 +17,28 @@ const (
 )
 
 func main() {
-
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
 		return
 	}
 
-	redisUrl := os.Getenv("REDIS_URL")
-
 	target, err := url.Parse(BASE_HOST)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	r, _ := redis.NewRedisClient(redisUrl)
-
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
+		originalPath := resp.Request.Header.Get("X-Original-Path")
+		method := resp.Request.Method
+		status := resp.StatusCode
+		log.Printf("%s %s → %d\n", method, originalPath, status)
+
 		resp.Header.Del("Content-Security-Policy")
 
 		path := resp.Request.URL.Path
-
-		go r.PublishLog(
-			context.Background(),
-			fmt.Sprintf(
-				"RESP %d %s",
-				resp.StatusCode,
-				path,
-			),
-			strings.Split(resp.Request.Host, ".")[0],
-			"info",
-		)
-
 		switch {
 		case strings.HasSuffix(path, ".html"):
 			resp.Header.Set("Content-Type", "text/html; charset=utf-8")
@@ -70,32 +54,31 @@ func main() {
 	}
 
 	proxy.Director = func(req *http.Request) {
+		req.Header.Set("X-Original-Path", req.URL.Path)
 
 		host := strings.Split(req.Host, ":")[0]
 		subdomain := strings.Split(host, ".")[0]
-
 		path := req.URL.Path
-		if path == "/" {
-			path = "/index.html"
+
+		var targetPath string
+
+		if strings.Contains(path, ".") {
+			targetPath = path
+		} else {
+
+			if path == "/" {
+				targetPath = "/index.html"
+			} else {
+				targetPath = "/index.html"
+			}
 		}
 
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
 		req.Host = target.Host
+		req.URL.Path = BASE_PATH + "/" + subdomain + targetPath
 
-		req.URL.Path = BASE_PATH + "/" + subdomain + path
-
-		go r.PublishLog(context.Background(), fmt.Sprintf(
-			"%s %s | ip=%s | ua=%s",
-			req.Method,
-			path,
-			req.RemoteAddr,
-			req.UserAgent(),
-		),
-			subdomain,
-			"info")
-
-		log.Println("→", req.URL.String())
+		log.Printf("→ %s (original: %s) → %s\n", req.Method, path, req.URL.String())
 	}
 
 	log.Println("Reverse Proxy running on", PORT)

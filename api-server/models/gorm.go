@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/driver/postgres"
@@ -97,16 +98,58 @@ func (d *DB) DeleteDeployment(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
-func (d *DB) CreateLogEvent(ctx context.Context, logEvent *LogEvent) error {
-	return gorm.G[LogEvent](d.db).Create(ctx, logEvent)
+func (d *DB) CreateLogEvents(ctx context.Context, logEvents *[]LogEvent) error {
+	return gorm.G[LogEvent](d.db).CreateInBatches(ctx, logEvents, 10)
 }
 
 func (d *DB) GetLogEventByID(ctx context.Context, id uuid.UUID) ([]LogEvent, error) {
 	logEvent, err := gorm.G[LogEvent](d.db).
-		Where("id = ?", id).
+		Where("deployment_id = ?", id).
 		Find(ctx)
 
 	return logEvent, err
+}
+
+func (d *DB) GetLogEventsByDeploymentAndTimeRange(
+	ctx context.Context,
+	deploymentID uuid.UUID,
+	from time.Time,
+	to time.Time,
+) ([]LogEvent, error) {
+
+	logEvents, err := gorm.G[LogEvent](d.db).
+		Where(
+			"message!=analytics AND deployment_id = ? AND created_at BETWEEN ? AND ?",
+			deploymentID,
+			from,
+			to,
+		).
+		Find(ctx)
+
+	return logEvents, err
+}
+
+func (d *DB) GetAnalytics(ctx context.Context, deploymentID uuid.UUID, from time.Time, to time.Time, status_code string, path string) ([]LogEvent, error) {
+	q := gorm.G[LogEvent](d.db).
+		Where("deployment_id = ?", deploymentID).
+		Where("created_at BETWEEN ? AND ?", from, to)
+
+	if status_code != "" {
+		q = q.Where(
+			"metadata ->> 'status_code' = ?",
+			status_code,
+		)
+	}
+
+	if path != "" {
+		q = q.Where(
+			"metadata ->> 'path' = ?",
+			path,
+		)
+	}
+
+	logs, err := q.Find(ctx)
+	return logs, err
 }
 
 func (d *DB) UpdateLogEvent(

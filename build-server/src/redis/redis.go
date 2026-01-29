@@ -29,7 +29,7 @@ func (r *RedisClient) PublishLog(ctx context.Context, log string, deployment_id 
 		Values: map[string]interface{}{
 			"level":         level,
 			"message":       log,
-			"created_at":    time.Now().UnixMilli(),
+			"created_at":    time.Now().Format("2006-01-02 15:04:05"),
 			"deployment_id": deployment_id,
 		},
 	}).Result()

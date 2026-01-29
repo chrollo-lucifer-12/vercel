@@ -4,7 +4,6 @@ import (
 	"context"
 	"log"
 
-	"github.com/chrollo-lucifer-12/api-server/clickhouse"
 	"github.com/chrollo-lucifer-12/api-server/env"
 	"github.com/chrollo-lucifer-12/api-server/models"
 	"github.com/chrollo-lucifer-12/api-server/redis"
@@ -28,9 +27,13 @@ func main() {
 
 	ctx := context.Background()
 
-	c := clickhouse.NewClickHouseDB(e.CLICKHOUSE_ADDR, e.CLICKHOUSE_USERNAME, e.CLICKHOUSE_PASSWORD)
+	db, err := models.NewDB(e.DSN, ctx)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
 
-	r, err := redis.NewRedisClient(e.REDIS_URL, c)
+	r, err := redis.NewRedisClient(e.REDIS_URL, db)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -39,15 +42,9 @@ func main() {
 	go r.SubscribeStreams(ctx, "logs_stream")
 	go r.SubscribeProxyLogs(ctx, "analytics_stream")
 
-	db, err := models.NewDB(e.DSN, ctx)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
 	w := workflow.NewWorkflowClient(ctx)
 
-	h, err := server.NewServerClient(w, db, c)
+	h, err := server.NewServerClient(w, db)
 	if err != nil {
 		log.Fatal(err)
 		return
