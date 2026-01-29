@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 
+	"github.com/chrollo-lucider-12/proxy/redis"
 	"github.com/joho/godotenv"
 )
 
@@ -23,6 +26,13 @@ func main() {
 		return
 	}
 
+	redisURL := os.Getenv("REDIS_URL")
+	r, err := redis.NewRedisClient(redisURL)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
 	target, err := url.Parse(BASE_HOST)
 	if err != nil {
 		log.Fatal(err)
@@ -34,11 +44,13 @@ func main() {
 		originalPath := resp.Request.Header.Get("X-Original-Path")
 		method := resp.Request.Method
 		status := resp.StatusCode
-		log.Printf("%s %s → %d\n", method, originalPath, status)
+		path := resp.Request.URL.Path
+		parts := strings.Split(path, "/")
+
+		r.PublishLog(context.Background(), status, parts[4], originalPath, method)
 
 		resp.Header.Del("Content-Security-Policy")
 
-		path := resp.Request.URL.Path
 		switch {
 		case strings.HasSuffix(path, ".html"):
 			resp.Header.Set("Content-Type", "text/html; charset=utf-8")
@@ -78,7 +90,6 @@ func main() {
 		req.Host = target.Host
 		req.URL.Path = BASE_PATH + "/" + subdomain + targetPath
 
-		log.Printf("→ %s (original: %s) → %s\n", req.Method, path, req.URL.String())
 	}
 
 	log.Println("Reverse Proxy running on", PORT)

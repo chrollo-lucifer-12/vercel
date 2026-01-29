@@ -22,10 +22,10 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{})
-	if err != nil {
-		return nil, err
-	}
+	// err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{})
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &DB{db: db}, nil
 }

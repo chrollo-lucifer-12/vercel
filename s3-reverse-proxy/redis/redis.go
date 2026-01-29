@@ -21,7 +21,7 @@ func NewRedisClient(url string) (*RedisClient, error) {
 	return &RedisClient{redis: client}, nil
 }
 
-func (r *RedisClient) PublishLog(ctx context.Context, status_code, slug, path, method string) {
+func (r *RedisClient) PublishLog(ctx context.Context, status_code int, slug, path, method string) {
 
 	_, err := r.redis.XAdd(ctx, &redis.XAddArgs{
 		Stream: "analytics_stream",

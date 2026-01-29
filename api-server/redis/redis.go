@@ -123,14 +123,20 @@ func (r *RedisClient) SubscribeProxyLogs(ctx context.Context, stream string) {
 		for _, msg := range res[0].Messages {
 			lastId = msg.ID
 
-			deploymentId, _ := msg.Values["deployment_id"]
+			slug, _ := msg.Values["slug"]
 			viewDateStr, _ := msg.Values["created_at"]
 			statusCode, _ := msg.Values["status_code"]
 			path, _ := msg.Values["path"]
 			method, _ := msg.Values["method"]
+			var deployment models.Deployment
+			err := r.db.Raw().Where("slug = ?", slug).First(&deployment).Error
+
+			if err != nil {
+				continue
+			}
 
 			viewDateParsed, _ := time.Parse("2006-01-02 15:04:05", viewDateStr.(string))
-			deploymentIdParsed, _ := uuid.Parse(deploymentId.(string))
+
 			metadata, _ := json.Marshal(map[string]any{
 				"path":        path.(string),
 				"status_code": statusCode.(string),
@@ -139,7 +145,7 @@ func (r *RedisClient) SubscribeProxyLogs(ctx context.Context, stream string) {
 
 			views = append(views, models.LogEvent{
 				Base:         models.Base{CreatedAt: viewDateParsed},
-				DeploymentID: deploymentIdParsed,
+				DeploymentID: deployment.ID,
 				Log:          "analytics",
 				Metadata:     datatypes.JSON(metadata),
 			})

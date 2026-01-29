@@ -22,9 +22,11 @@ func NewServerClient(wClient *workflow.WorkflowClient, db *models.DB) (*ServerCl
 }
 
 func (h *ServerClient) StartHTTP() {
-	http.HandleFunc("/deploy", h.deployHandler)
-	http.HandleFunc("/project", h.projectHandler)
-	http.HandleFunc("/logs", h.logsHandler)
-	http.HandleFunc("/analytics", h.analyticsHandler)
+
+	http.HandleFunc("/api/v1/deploy", h.deployHandler)
+	http.HandleFunc("/api/v1/project", h.projectHandler)
+	http.HandleFunc("/api/v1/logs", h.logsHandler)
+	http.HandleFunc("/api/v1/analytics", h.analyticsHandler)
+
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
