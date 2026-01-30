@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -23,6 +25,12 @@ type LogRequest struct {
 	Metadata     map[string]any `json:"metadata"`
 	CreatedAt    time.Time      `json:"created_at"`
 	Slug         string         `json:"slug"`
+}
+
+type UpdateHashRequest struct {
+	ProjectID string `json:"project_id"`
+	Hash      string `json:"hash"`
+	GitURL    string `json:"git_url"`
 }
 
 func NewRedisClient(url string, apiURL string) (*RedisClient, error) {
@@ -45,7 +53,7 @@ func (r *RedisClient) sendLogs(ctx context.Context, logs []LogRequest) {
 		return
 	}
 
-	req, err := http.NewRequestWithContext(ctx, "POST", r.ApiURL, bytes.NewBuffer(data))
+	req, err := http.NewRequestWithContext(ctx, "POST", r.ApiURL+"/api/v1/logs/insert", bytes.NewBuffer(data))
 	if err != nil {
 		log.Println("failed to create request:", err)
 		return
@@ -191,4 +199,88 @@ func (r *RedisClient) SubscribeProxyLogs(ctx context.Context, stream string) {
 
 		r.sendLogs(ctx, logs)
 	}
+}
+
+func (r *RedisClient) SubscribeHashStreams(ctx context.Context, stream string) {
+	lastId := "$"
+
+	for {
+		select {
+		case <-ctx.Done():
+			log.Println("redis hash log subscription context cancelled")
+			return
+		default:
+		}
+
+		res, err := r.redis.XRead(ctx, &redis.XReadArgs{
+			Streams: []string{stream, lastId},
+			Count:   10,
+			Block:   0,
+		}).Result()
+
+		if err != nil {
+			if err != redis.Nil {
+				log.Println("stream read error:", err)
+				time.Sleep(1 * time.Second)
+			}
+			continue
+		}
+
+		if len(res) == 0 {
+			continue
+		}
+
+		for _, msg := range res[0].Messages {
+			lastId = msg.ID
+			repoURL := msg.Values["repo_url"]
+			lastKnownHash := msg.Values["last_known_hash"]
+			projectID := msg.Values["project_id"]
+
+			newHash := GetRepoHash(repoURL.(string))
+
+			if newHash == "" || newHash == lastKnownHash {
+				continue
+			}
+
+			reqBody := UpdateHashRequest{
+				ProjectID: projectID.(string),
+				Hash:      newHash,
+				GitURL:    repoURL.(string),
+			}
+
+			jsonData, err := json.Marshal(reqBody)
+			if err != nil {
+				log.Println("failed to marshal JSON:", err)
+				continue
+			}
+
+			resp, err := http.Post(r.ApiURL+"/api/v1/hash/update", "application/json", bytes.NewReader(jsonData))
+			if err != nil {
+				log.Println("failed to send request to API server:", err)
+				continue
+			}
+			resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				log.Println("API server responded with status:", resp.Status)
+				continue
+			}
+		}
+	}
+}
+
+func GetRepoHash(repoURL string) string {
+	out, err := exec.Command("git", "ls-remote", repoURL, "main").Output()
+	if err != nil {
+		log.Fatal(err)
+		return ""
+	}
+
+	var hash string
+	parts := strings.Split(string(out), "\t")
+	if len(parts) > 0 {
+		hash = strings.TrimSpace(parts[0])
+	}
+
+	return hash
 }

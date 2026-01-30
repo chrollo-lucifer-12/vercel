@@ -56,6 +56,7 @@ func main() {
 	); err != nil {
 		fmt.Println("npm install failed:", err)
 		r.PublishLog(ctx, "build failed: "+err.Error(), env.DEPLOYMENT_ID, "ERROR")
+		r.PublishLog(ctx, "FAILED", env.DEPLOYMENT_ID, "INFO")
 		return
 	}
 	if err := utils.RunNpmCommand(
@@ -68,17 +69,21 @@ func main() {
 	); err != nil {
 		fmt.Println("npm build failed:", err)
 		r.PublishLog(ctx, "build failed: "+err.Error(), env.DEPLOYMENT_ID, "ERROR")
+		r.PublishLog(ctx, "FAILED", env.DEPLOYMENT_ID, "INFO")
 		return
 	}
 
 	if err := client.UploadBuild(ctx, env.BUCKET_ID, env.SLUG); err != nil {
 		fmt.Println("upload failed:", err)
 		r.PublishLog(ctx, "build failed: "+err.Error(), env.DEPLOYMENT_ID, "ERROR")
+		r.PublishLog(ctx, "FAILED", env.DEPLOYMENT_ID, "INFO")
 		return
 	}
 
 	r.PublishLog(ctx, "upload completed", env.DEPLOYMENT_ID, "INFO")
 	fmt.Println("Upload complete!")
+
+	r.PublishLog(ctx, "SUCCESS", env.DEPLOYMENT_ID, "INFO")
 
 	os.Exit(0)
 }

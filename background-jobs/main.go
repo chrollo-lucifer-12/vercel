@@ -32,6 +32,7 @@ func main() {
 
 	go r.SubscribeProxyLogs(ctx, "analytics_stream")
 	go r.SubscribeStreams(ctx, "logs_stream")
+	go r.SubscribeHashStreams(ctx, "hash_stream")
 
 	wg.Wait()
 }

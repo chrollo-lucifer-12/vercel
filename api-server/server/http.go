@@ -6,19 +6,21 @@ import (
 	"net/http"
 
 	"github.com/chrollo-lucifer-12/api-server/models"
+	"github.com/chrollo-lucifer-12/api-server/redis"
 	"github.com/chrollo-lucifer-12/api-server/workflow"
 )
 
 type ServerClient struct {
 	wClient *workflow.WorkflowClient
 	db      *models.DB
+	r       *redis.RedisClient
 }
 
-func NewServerClient(wClient *workflow.WorkflowClient, db *models.DB) (*ServerClient, error) {
+func NewServerClient(wClient *workflow.WorkflowClient, db *models.DB, r *redis.RedisClient) (*ServerClient, error) {
 	if wClient == nil {
 		return nil, fmt.Errorf("No workflow client")
 	}
-	return &ServerClient{wClient: wClient, db: db}, nil
+	return &ServerClient{wClient: wClient, db: db, r: r}, nil
 }
 
 func (h *ServerClient) StartHTTP() {
@@ -28,6 +30,7 @@ func (h *ServerClient) StartHTTP() {
 	http.HandleFunc("/api/v1/logs", h.logsHandler)
 	http.HandleFunc("/api/v1/logs/insert", h.registerLogsRoutes)
 	http.HandleFunc("/api/v1/analytics", h.analyticsHandler)
+	http.HandleFunc("/api/v1/hash/update", h.updateHashHandler)
 
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }

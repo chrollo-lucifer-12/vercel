@@ -6,6 +6,7 @@ import (
 
 	"github.com/chrollo-lucifer-12/api-server/env"
 	"github.com/chrollo-lucifer-12/api-server/models"
+	"github.com/chrollo-lucifer-12/api-server/redis"
 	"github.com/chrollo-lucifer-12/api-server/server"
 	"github.com/chrollo-lucifer-12/api-server/workflow"
 	"github.com/joho/godotenv"
@@ -26,6 +27,12 @@ func main() {
 
 	ctx := context.Background()
 
+	r, err := redis.NewRedisClient(e.REDIS_URL)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
 	db, err := models.NewDB(e.DSN, ctx)
 	if err != nil {
 		log.Fatal(err)
@@ -34,7 +41,7 @@ func main() {
 
 	w := workflow.NewWorkflowClient(ctx)
 
-	h, err := server.NewServerClient(w, db)
+	h, err := server.NewServerClient(w, db, r)
 	if err != nil {
 		log.Fatal(err)
 		return

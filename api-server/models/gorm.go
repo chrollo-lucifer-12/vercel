@@ -22,16 +22,25 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, err
 	}
 
-	// err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{})
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{})
+	if err != nil {
+		return nil, err
+	}
 
 	return &DB{db: db}, nil
 }
 
 func (d *DB) Raw() *gorm.DB {
 	return d.db
+}
+
+func (d *DB) CreateHash(ctx context.Context, gitHash *GitHash) error {
+	return gorm.G[GitHash](d.db).Create(ctx, gitHash)
+}
+
+func (d *DB) UpdateHash(ctx context.Context, project_id uuid.UUID, gitHash GitHash) error {
+	_, err := gorm.G[GitHash](d.db).Where("project_id = ?", project_id).Updates(ctx, gitHash)
+	return err
 }
 
 func (d *DB) CreateProject(ctx context.Context, project *Project) error {

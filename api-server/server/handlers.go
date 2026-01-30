@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"os/exec"
+	"strings"
 	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/models"
@@ -30,6 +32,12 @@ type LogRequest struct {
 	Metadata     datatypes.JSON `json:"metadata"`
 	CreatedAt    time.Time      `json:"created_at"`
 	Slug         string         `json:"slug"`
+}
+
+type UpdateHashRequest struct {
+	ProjectID string `json:"project_id"`
+	Hash      string `json:"hash"`
+	GitURL    string `json:"git_url"`
 }
 
 func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +155,28 @@ func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	out, err := exec.Command("git", "ls-remote", req.GithubURL, "main").Output()
+	if err != nil {
+		log.Fatal(err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	var hash string
+	parts := strings.Split(string(out), "\t")
+	if len(parts) > 0 {
+		hash = strings.TrimSpace(parts[0])
+	}
+
+	err = h.db.CreateHash(ctx, &models.GitHash{ProjectID: project.ID, Hash: hash})
+	if err != nil {
+		log.Fatal(err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	go h.r.PublishLog(ctx, project.ID.String(), project.GitUrl, hash)
+
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{
 		"name": project.Name,
@@ -178,6 +208,10 @@ func (h *ServerClient) registerLogsRoutes(w http.ResponseWriter, r *http.Request
 			var deployment models.Deployment
 			h.db.Raw().Where("slug = ?", l.Slug).Find(&deployment)
 			deploymentID = deployment.ID
+		}
+
+		if l.Log == "FAILED" || l.Log == "SUCCESS" {
+			h.db.UpdateDeployment(ctx, deploymentID, models.Deployment{Status: l.Log})
 		}
 
 		newLogs = append(newLogs, models.LogEvent{
@@ -275,4 +309,35 @@ func (h *ServerClient) analyticsHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(logs)
+}
+
+func (h *ServerClient) updateHashHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req UpdateHashRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	projectIDParsed, _ := uuid.Parse(req.ProjectID)
+
+	err := h.db.UpdateHash(context.Background(), projectIDParsed, models.GitHash{Hash: req.Hash})
+
+	if err != nil {
+		log.Println("update hash error:", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	go h.r.PublishLog(context.Background(), req.ProjectID, req.GitURL, req.Hash)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Hash updated successfully",
+	})
 }
