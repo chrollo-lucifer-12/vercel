@@ -210,6 +210,8 @@ func (r *RedisClient) SubscribeHashStreams(ctx context.Context, stream string) {
 
 	r.ensureGroup(ctx, stream, group)
 
+	checkInterval := 15 * time.Minute
+
 	for {
 		res, err := r.redis.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    group,
@@ -228,15 +230,54 @@ func (r *RedisClient) SubscribeHashStreams(ctx context.Context, stream string) {
 
 		for _, s := range res {
 			for _, msg := range s.Messages {
-
 				repoURL := msg.Values["repo_url"].(string)
 				lastHash := msg.Values["last_known_hash"].(string)
 				projectID := msg.Values["project_id"].(string)
 
+				lastCheckKey := "last_hash_check:" + projectID
+				lastCheckStr, err := r.redis.Get(ctx, lastCheckKey).Result()
+
+				if err == nil {
+					lastCheckTime, parseErr := time.Parse(time.RFC3339, lastCheckStr)
+					if parseErr == nil && time.Since(lastCheckTime) < checkInterval {
+
+						r.redis.XAck(ctx, stream, group, msg.ID)
+
+						remaining := checkInterval - time.Since(lastCheckTime)
+						time.AfterFunc(remaining, func() {
+							r.redis.XAdd(context.Background(), &redis.XAddArgs{
+								Stream: stream,
+								Values: msg.Values,
+							})
+						})
+						continue
+					}
+				}
+
 				newHash := GetRepoHash(repoURL)
 
-				if newHash == "" || newHash == lastHash {
-					//	r.redis.XAck(ctx, stream, group, msg.ID)
+				r.redis.Set(ctx, lastCheckKey, time.Now().Format(time.RFC3339), 24*time.Hour)
+
+				r.redis.XAck(ctx, stream, group, msg.ID)
+
+				if newHash == "" {
+					log.Printf("failed to get hash for %s, will retry in 5 minutes", repoURL)
+					time.AfterFunc(5*time.Minute, func() {
+						r.redis.XAdd(context.Background(), &redis.XAddArgs{
+							Stream: stream,
+							Values: msg.Values,
+						})
+					})
+					continue
+				}
+
+				if newHash == lastHash {
+					time.AfterFunc(checkInterval, func() {
+						r.redis.XAdd(context.Background(), &redis.XAddArgs{
+							Stream: stream,
+							Values: msg.Values,
+						})
+					})
 					continue
 				}
 
@@ -252,8 +293,23 @@ func (r *RedisClient) SubscribeHashStreams(ctx context.Context, stream string) {
 					bytes.NewReader(body),
 				)
 
-				if err == nil && resp.StatusCode == http.StatusOK {
-					r.redis.XAck(ctx, stream, group, msg.ID)
+				if err != nil || (resp != nil && resp.StatusCode != http.StatusOK) {
+					log.Printf("failed to update hash for %s, will retry in 2 minutes", projectID)
+					time.AfterFunc(2*time.Minute, func() {
+						msg.Values["last_known_hash"] = newHash
+						r.redis.XAdd(context.Background(), &redis.XAddArgs{
+							Stream: stream,
+							Values: msg.Values,
+						})
+					})
+				} else {
+					time.AfterFunc(checkInterval, func() {
+						msg.Values["last_known_hash"] = newHash
+						r.redis.XAdd(context.Background(), &redis.XAddArgs{
+							Stream: stream,
+							Values: msg.Values,
+						})
+					})
 				}
 
 				if resp != nil {
