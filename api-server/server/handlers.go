@@ -40,16 +40,58 @@ type UpdateHashRequest struct {
 	GitURL    string `json:"git_url"`
 }
 
-func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
-	var req DeployRequest
+func (h *ServerClient) queueDeployment(ctx context.Context, project *models.Project, userEnv string) (uuid.UUID, error) {
 
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
+	d, err := gorm.G[models.Deployment](h.db.Raw()).
+		Where("project_id = ?", project.ID).
+		Where("status IN ?", []string{"QUEUED", "PENDING"}).
+		Find(ctx)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if len(d) > 0 {
+		return uuid.Nil, gorm.ErrInvalidData
 	}
 
-	if req.ProjectID == "" {
-		http.Error(w, "project_id is required", http.StatusBadRequest)
+	tx := h.db.Raw().Begin()
+	if tx.Error != nil {
+		return uuid.Nil, tx.Error
+	}
+
+	dep := &models.Deployment{
+		ProjectID: project.ID,
+		Status:    "QUEUED",
+	}
+
+	if err := tx.Create(dep).Error; err != nil {
+		tx.Rollback()
+		return uuid.Nil, err
+	}
+	if err := tx.Commit().Error; err != nil {
+		tx.Rollback()
+		return uuid.Nil, err
+	}
+
+	go func() {
+		if err := h.wClient.TriggerWorkflow(ctx, project.GitUrl, project.SubDomain, dep.ID.String(), userEnv); err != nil {
+			_ = h.db.Raw().Model(&models.Deployment{}).
+				Where("id = ?", dep.ID).
+				Update("status", "FAILED")
+			log.Println("failed to trigger workflow:", err)
+		} else {
+			_ = h.db.Raw().Model(&models.Deployment{}).
+				Where("id = ?", dep.ID).
+				Update("status", "PENDING")
+		}
+	}()
+
+	return dep.ID, nil
+}
+
+func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
+	var req DeployRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -60,68 +102,26 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	ctx := context.Background()
-
 	project, err := h.db.GetProjectByID(ctx, projectIDUUID)
 	if err != nil {
 		http.Error(w, "project not found: "+err.Error(), http.StatusNotFound)
 		return
 	}
 
-	if project.SubDomain == "" || project.GitUrl == "" {
-		http.Error(w, "project data is incomplete", http.StatusInternalServerError)
-		return
-	}
-
-	d, err := gorm.G[models.Deployment](h.db.Raw()).Where("project_id = ?", project.ID).Where("status IN ?", []string{"QUEUED", "PENDING"}).Find(ctx)
+	depID, err := h.queueDeployment(ctx, &project, req.UserEnv)
 	if err != nil {
-		http.Error(w, "failed to fetch deployment "+err.Error(), http.StatusNotFound)
-		return
-	}
-
-	if len(d) > 0 {
-		http.Error(w, "another deployment is running", http.StatusConflict)
-		return
-	}
-
-	tx := h.db.Raw().Begin()
-	if tx.Error != nil {
-		http.Error(w, "failed to start transaction", http.StatusInternalServerError)
-		return
-	}
-
-	dep := &models.Deployment{
-		ProjectID: projectIDUUID,
-		Status:    "QUEUED",
-	}
-
-	if err := tx.Create(dep).Error; err != nil {
-		tx.Rollback()
-		http.Error(w, "failed to create deployment: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		http.Error(w, "failed to commit transaction: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	projectSlug := project.SubDomain
-	gitUrl := project.GitUrl
-
-	if err := h.wClient.TriggerWorkflow(ctx, gitUrl, projectSlug, dep.ID.String(), req.UserEnv); err != nil {
-
-		_ = h.db.Raw().Model(&models.Deployment{}).
-			Where("id = ?", dep.ID).
-			Update("status", "FAILED")
-
-		http.Error(w, "failed to trigger workflow: "+err.Error(), http.StatusInternalServerError)
+		if err == gorm.ErrInvalidData {
+			http.Error(w, "another deployment is running", http.StatusConflict)
+			return
+		}
+		http.Error(w, "failed to queue deployment: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	resp := map[string]interface{}{
-		"status":      "queued",
-		"projectSlug": projectSlug,
+		"status":        "queued",
+		"projectSlug":   project.SubDomain,
+		"deployment_id": depID.String(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -323,21 +323,38 @@ func (h *ServerClient) updateHashHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	projectIDParsed, _ := uuid.Parse(req.ProjectID)
-
-	err := h.db.UpdateHash(context.Background(), projectIDParsed, models.GitHash{Hash: req.Hash})
-
+	projectIDParsed, err := uuid.Parse(req.ProjectID)
 	if err != nil {
+		http.Error(w, "invalid project_id: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+
+	if err := h.db.UpdateHash(ctx, projectIDParsed, models.GitHash{Hash: req.Hash}); err != nil {
 		log.Println("update hash error:", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	go h.r.PublishLog(context.Background(), req.ProjectID, req.GitURL, req.Hash)
+	project, err := h.db.GetProjectByID(ctx, projectIDParsed)
+	if err != nil {
+		http.Error(w, "project not found: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	depID, err := h.queueDeployment(ctx, &project, "")
+	if err != nil && err != gorm.ErrInvalidData {
+		http.Error(w, "failed to queue deployment: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	go h.r.PublishLog(ctx, req.ProjectID, req.GitURL, req.Hash)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Hash updated successfully",
+		"message":       "Hash updated and deployment queued",
+		"deployment_id": depID.String(),
 	})
 }
