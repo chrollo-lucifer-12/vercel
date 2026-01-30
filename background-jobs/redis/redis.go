@@ -14,6 +14,11 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+var (
+	getRepoHash   = GetRepoHash
+	checkInterval = 15 * time.Minute
+)
+
 type RedisClient struct {
 	redis  *redis.Client
 	ApiURL string
@@ -210,8 +215,6 @@ func (r *RedisClient) SubscribeHashStreams(ctx context.Context, stream string) {
 
 	r.ensureGroup(ctx, stream, group)
 
-	checkInterval := 15 * time.Minute
-
 	for {
 		res, err := r.redis.XReadGroup(ctx, &redis.XReadGroupArgs{
 			Group:    group,
@@ -254,7 +257,7 @@ func (r *RedisClient) SubscribeHashStreams(ctx context.Context, stream string) {
 					}
 				}
 
-				newHash := GetRepoHash(repoURL)
+				newHash := getRepoHash(repoURL)
 
 				r.redis.Set(ctx, lastCheckKey, time.Now().Format(time.RFC3339), 24*time.Hour)
 
