@@ -10,6 +10,7 @@ import (
 	"github.com/chrollo-lucifer-12/api-server/models"
 	"github.com/google/uuid"
 	"github.com/sio/coolname"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -21,6 +22,14 @@ type DeployRequest struct {
 type ProjectRequest struct {
 	ProjectName string `json:"project_name"`
 	GithubURL   string `json:"github_url"`
+}
+
+type LogRequest struct {
+	DeploymentID uuid.UUID      `json:"deployment_id"`
+	Log          string         `json:"log"`
+	Metadata     datatypes.JSON `json:"metadata"`
+	CreatedAt    time.Time      `json:"created_at"`
+	Slug         string         `json:"slug"`
 }
 
 func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
@@ -143,6 +152,50 @@ func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
 		"name": project.Name,
 		"id":   project.ID.String(),
 	})
+}
+
+func (h *ServerClient) registerLogsRoutes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var logs []LogRequest
+	if err := json.NewDecoder(r.Body).Decode(&logs); err != nil {
+		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	ctx := context.Background()
+
+	var newLogs []models.LogEvent
+
+	for _, l := range logs {
+
+		deploymentID := l.DeploymentID
+
+		if l.Slug != "" {
+			var deployment models.Deployment
+			h.db.Raw().Where("slug = ?", l.Slug).Find(&deployment)
+			deploymentID = deployment.ID
+		}
+
+		newLogs = append(newLogs, models.LogEvent{
+			DeploymentID: deploymentID,
+			Log:          l.Log,
+			Metadata:     l.Metadata,
+			Base:         models.Base{CreatedAt: l.CreatedAt},
+		})
+
+	}
+
+	err := h.db.CreateLogEvents(ctx, &newLogs)
+	if err != nil {
+		log.Println("failed to insert log:", err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(`{"status":"ok"}`))
 }
 
 func (h *ServerClient) logsHandler(w http.ResponseWriter, r *http.Request) {
