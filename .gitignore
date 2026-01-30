@@ -8,3 +8,6 @@ socket-server/.env
 
 
 s3-reverse-proxy/.env
+
+
+background-jobs/.env

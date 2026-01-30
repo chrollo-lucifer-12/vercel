@@ -6,7 +6,6 @@ import (
 
 	"github.com/chrollo-lucifer-12/api-server/env"
 	"github.com/chrollo-lucifer-12/api-server/models"
-	"github.com/chrollo-lucifer-12/api-server/redis"
 	"github.com/chrollo-lucifer-12/api-server/server"
 	"github.com/chrollo-lucifer-12/api-server/workflow"
 	"github.com/joho/godotenv"
@@ -32,15 +31,6 @@ func main() {
 		log.Fatal(err)
 		return
 	}
-
-	r, err := redis.NewRedisClient(e.REDIS_URL, db)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
-
-	go r.SubscribeStreams(ctx, "logs_stream")
-	go r.SubscribeProxyLogs(ctx, "analytics_stream")
 
 	w := workflow.NewWorkflowClient(ctx)
 
