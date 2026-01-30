@@ -42,21 +42,28 @@ func NewRedisClient(url string, apiURL string) (*RedisClient, error) {
 	return &RedisClient{redis: client, ApiURL: apiURL}, nil
 }
 
-func (r *RedisClient) sendLogs(ctx context.Context, logs []LogRequest) {
+func (r *RedisClient) ensureGroup(ctx context.Context, stream, group string) {
+	err := r.redis.XGroupCreateMkStream(ctx, stream, group, "0").Err()
+	if err != nil && !strings.Contains(err.Error(), "BUSYGROUP") {
+		log.Fatalf("failed to create group %s: %v", group, err)
+	}
+}
+
+func (r *RedisClient) sendLogs(ctx context.Context, logs []LogRequest) error {
 	if len(logs) == 0 {
-		return
+		return nil
 	}
 
 	data, err := json.Marshal(logs)
 	if err != nil {
 		log.Println("failed to marshal logs:", err)
-		return
+		return err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", r.ApiURL+"/api/v1/logs/insert", bytes.NewBuffer(data))
 	if err != nil {
 		log.Println("failed to create request:", err)
-		return
+		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -64,206 +71,194 @@ func (r *RedisClient) sendLogs(ctx context.Context, logs []LogRequest) {
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Println("failed to send logs:", err)
-		return
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		log.Println("API responded with status:", resp.Status)
 	}
+
+	return nil
 }
 
 func (r *RedisClient) SubscribeStreams(ctx context.Context, stream string) {
-	lastId := "$"
+
+	group := "logs_group"
+	consumer := uuid.NewString()
+
+	r.ensureGroup(ctx, stream, group)
 
 	for {
-		select {
-		case <-ctx.Done():
-			log.Println("redis stream subscription context cancelled")
-			return
-		default:
-		}
-
-		res, err := r.redis.XRead(ctx, &redis.XReadArgs{
-			Streams: []string{stream, lastId},
-			Count:   10,
-			Block:   0,
+		res, err := r.redis.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group:    group,
+			Consumer: consumer,
+			Streams:  []string{stream, ">"},
+			Count:    10,
+			Block:    5 * time.Second,
 		}).Result()
 
 		if err != nil {
 			if err != redis.Nil {
-				log.Println("stream read error:", err)
-				time.Sleep(1 * time.Second)
+				log.Println("xreadgroup error:", err)
 			}
-			continue
-		}
-
-		if len(res) == 0 {
 			continue
 		}
 
 		var logs []LogRequest
+		var msgIDs []string
 
-		for _, msg := range res[0].Messages {
-			lastId = msg.ID
-			level, _ := msg.Values["level"]
-			message, _ := msg.Values["message"]
-			createdAt, _ := msg.Values["created_at"]
-			deploymentId, _ := msg.Values["deployment_id"]
+		for _, s := range res {
+			for _, msg := range s.Messages {
 
-			createdAtParsed, _ := time.Parse("2006-01-02 15:04:05", createdAt.(string))
+				level := msg.Values["level"].(string)
+				message := msg.Values["message"].(string)
+				createdAt := msg.Values["created_at"].(string)
+				deploymentID := msg.Values["deployment_id"].(string)
 
-			var depID uuid.UUID
-			if deploymentIdStr, ok := deploymentId.(string); ok {
-				parsed, err := uuid.Parse(deploymentIdStr)
-				if err == nil {
-					depID = parsed
-				}
+				t, _ := time.Parse("2006-01-02 15:04:05", createdAt)
+				depID, _ := uuid.Parse(deploymentID)
+
+				logs = append(logs, LogRequest{
+					DeploymentID: depID,
+					Log:          message,
+					Metadata:     map[string]any{"level": level, "type": "log"},
+					CreatedAt:    t,
+				})
+				msgIDs = append(msgIDs, msg.ID)
+
 			}
-
-			metadata := map[string]any{
-				"level": level.(string),
-				"type":  "log",
-			}
-
-			logs = append(logs, LogRequest{
-				DeploymentID: depID,
-				Log:          message.(string),
-				Metadata:     metadata,
-				CreatedAt:    createdAtParsed,
-				Slug:         "",
-			})
 		}
 
-		r.sendLogs(ctx, logs)
+		if len(logs) == 0 {
+			continue
+		}
+
+		if err := r.sendLogs(ctx, logs); err != nil {
+			log.Println("sendLogs failed, skipping ack")
+			continue
+		}
+
+		r.redis.XAck(ctx, stream, group, msgIDs...)
 	}
 }
 
 func (r *RedisClient) SubscribeProxyLogs(ctx context.Context, stream string) {
-	lastId := "$"
+	group := "proxy_group"
+	consumer := uuid.NewString()
+
+	r.ensureGroup(ctx, stream, group)
 
 	for {
-		select {
-		case <-ctx.Done():
-			log.Println("redis proxy log subscription context cancelled")
-			return
-		default:
-		}
-
-		res, err := r.redis.XRead(ctx, &redis.XReadArgs{
-			Streams: []string{stream, lastId},
-			Count:   10,
-			Block:   0,
+		res, err := r.redis.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group:    group,
+			Consumer: consumer,
+			Streams:  []string{stream, ">"},
+			Count:    10,
+			Block:    5 * time.Second,
 		}).Result()
 
 		if err != nil {
 			if err != redis.Nil {
-				log.Println("stream read error:", err)
-				time.Sleep(1 * time.Second)
+				log.Println("proxy xreadgroup error:", err)
 			}
-			continue
-		}
-
-		if len(res) == 0 {
 			continue
 		}
 
 		var logs []LogRequest
+		var msgIDs []string
 
-		for _, msg := range res[0].Messages {
-			lastId = msg.ID
-			slug, _ := msg.Values["slug"]
-			viewDateStr, _ := msg.Values["created_at"]
-			statusCode, _ := msg.Values["status_code"]
-			path, _ := msg.Values["path"]
-			method, _ := msg.Values["method"]
+		for _, s := range res {
+			for _, msg := range s.Messages {
 
-			viewDateParsed, _ := time.Parse("2006-01-02 15:04:05", viewDateStr.(string))
+				t, _ := time.Parse(
+					"2006-01-02 15:04:05",
+					msg.Values["created_at"].(string),
+				)
 
-			metadata := map[string]any{
-				"path":        path,
-				"status_code": statusCode,
-				"method":      method,
+				logs = append(logs, LogRequest{
+					Log:       "analytics",
+					Slug:      msg.Values["slug"].(string),
+					CreatedAt: t,
+					Metadata: map[string]any{
+						"path":        msg.Values["path"],
+						"status_code": msg.Values["status_code"],
+						"method":      msg.Values["method"],
+					},
+				})
+				msgIDs = append(msgIDs, msg.ID)
+
 			}
-
-			var depID uuid.UUID
-
-			logs = append(logs, LogRequest{
-				DeploymentID: depID,
-				Log:          "analytics",
-				Metadata:     metadata,
-				CreatedAt:    viewDateParsed,
-				Slug:         slug.(string),
-			})
 		}
 
-		r.sendLogs(ctx, logs)
+		if len(logs) == 0 {
+			continue
+		}
+
+		if err := r.sendLogs(ctx, logs); err != nil {
+			log.Println("sendLogs failed, skipping ack")
+			continue
+		}
+
+		r.redis.XAck(ctx, stream, group, msgIDs...)
 	}
 }
 
 func (r *RedisClient) SubscribeHashStreams(ctx context.Context, stream string) {
-	lastId := "$"
+	group := "hash_group"
+	consumer := uuid.NewString()
+
+	r.ensureGroup(ctx, stream, group)
 
 	for {
-		select {
-		case <-ctx.Done():
-			log.Println("redis hash log subscription context cancelled")
-			return
-		default:
-		}
-
-		res, err := r.redis.XRead(ctx, &redis.XReadArgs{
-			Streams: []string{stream, lastId},
-			Count:   10,
-			Block:   0,
+		res, err := r.redis.XReadGroup(ctx, &redis.XReadGroupArgs{
+			Group:    group,
+			Consumer: consumer,
+			Streams:  []string{stream, ">"},
+			Count:    5,
+			Block:    10 * time.Second,
 		}).Result()
 
 		if err != nil {
 			if err != redis.Nil {
-				log.Println("stream read error:", err)
-				time.Sleep(1 * time.Second)
+				log.Println("hash xreadgroup error:", err)
 			}
 			continue
 		}
 
-		if len(res) == 0 {
-			continue
-		}
+		for _, s := range res {
+			for _, msg := range s.Messages {
 
-		for _, msg := range res[0].Messages {
-			lastId = msg.ID
-			repoURL := msg.Values["repo_url"]
-			lastKnownHash := msg.Values["last_known_hash"]
-			projectID := msg.Values["project_id"]
+				repoURL := msg.Values["repo_url"].(string)
+				lastHash := msg.Values["last_known_hash"].(string)
+				projectID := msg.Values["project_id"].(string)
 
-			newHash := GetRepoHash(repoURL.(string))
+				newHash := GetRepoHash(repoURL)
 
-			if newHash == "" || newHash == lastKnownHash {
-				continue
-			}
+				if newHash == "" || newHash == lastHash {
+					//	r.redis.XAck(ctx, stream, group, msg.ID)
+					continue
+				}
 
-			reqBody := UpdateHashRequest{
-				ProjectID: projectID.(string),
-				Hash:      newHash,
-				GitURL:    repoURL.(string),
-			}
+				body, _ := json.Marshal(UpdateHashRequest{
+					ProjectID: projectID,
+					Hash:      newHash,
+					GitURL:    repoURL,
+				})
 
-			jsonData, err := json.Marshal(reqBody)
-			if err != nil {
-				log.Println("failed to marshal JSON:", err)
-				continue
-			}
+				resp, err := http.Post(
+					r.ApiURL+"/api/v1/hash/update",
+					"application/json",
+					bytes.NewReader(body),
+				)
 
-			resp, err := http.Post(r.ApiURL+"/api/v1/hash/update", "application/json", bytes.NewReader(jsonData))
-			if err != nil {
-				log.Println("failed to send request to API server:", err)
-				continue
-			}
-			resp.Body.Close()
+				if err == nil && resp.StatusCode == http.StatusOK {
+					r.redis.XAck(ctx, stream, group, msg.ID)
+				}
 
-			if resp.StatusCode != http.StatusOK {
-				log.Println("API server responded with status:", resp.Status)
-				continue
+				if resp != nil {
+					resp.Body.Close()
+				}
 			}
 		}
 	}
