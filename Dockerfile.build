@@ -4,8 +4,7 @@ WORKDIR /home/app
 
 RUN apk add --no-cache git
 
-COPY go.work ./
-COPY go.work.sum ./
+COPY go.work.docker ./go.work
 COPY build-server/go.mod build-server/go.sum ./build-server/
 COPY shared/go.mod shared/go.sum ./shared/
 
