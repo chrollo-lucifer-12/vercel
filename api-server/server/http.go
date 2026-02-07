@@ -28,10 +28,6 @@ func (h *ServerClient) StartHTTP() {
 
 	http.HandleFunc("/api/v1/deploy", h.deployHandler)
 	http.HandleFunc("/api/v1/project", h.projectHandler)
-	http.HandleFunc("/api/v1/logs", h.logsHandler)
-	http.HandleFunc("/api/v1/logs/insert", h.registerLogsRoutes)
-	http.HandleFunc("/api/v1/analytics", h.analyticsHandler)
-	http.HandleFunc("/api/v1/hash/update", h.updateHashHandler)
 
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }

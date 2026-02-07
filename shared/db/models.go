@@ -4,7 +4,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -48,5 +47,12 @@ type LogEvent struct {
 	Base
 	DeploymentID uuid.UUID `gorm:"type:uuid;index"`
 	Log          string
-	Metadata     datatypes.JSON
+}
+
+type WebsiteAnalytics struct {
+	Base
+	Status       int
+	Method       string
+	OriginalPath string
+	Slug         string
 }

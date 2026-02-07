@@ -37,18 +37,5 @@ func Load() error {
 		}
 	}
 
-	required := []EnvKey{
-		GithubToken,
-		SupabaseUrl,
-		SupabaseSecret,
-		Dsn,
-	}
-
-	for _, key := range required {
-		if key.GetValue() == "" {
-			return fmt.Errorf("missing required env variable: %s", key)
-		}
-	}
-
 	return nil
 }
