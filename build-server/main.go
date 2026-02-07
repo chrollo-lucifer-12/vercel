@@ -5,24 +5,14 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/chrollo-lucifer-12/shared/env"
 	"github.com/chrollo-lucifer-12/shared/upload"
 	"github.com/chrollo-lucifer-12/shared/utils"
 )
 
 func main() {
 	ctx := context.Background()
-	// env, err := env.NewEnv()
-	// if err != nil {
-	// 	fmt.Println("env error:", err)
-	// 	return
-	// }
-	//
-	err := env.Load()
-	if err != nil {
-		panic(err)
-	}
-
+	supabaseUrl := os.Getenv("SUPABASE_URL")
+	supabaseSecret := os.Getenv("SUPABASE_KEY")
 	getUserEnv := os.Getenv("USER_ENV")
 	userEnv, err := utils.ParseUserEnv(getUserEnv)
 	if err != nil {
@@ -34,7 +24,7 @@ func main() {
 		return
 	}
 
-	client, err := upload.NewUploadClient(env.SupabaseUrl.GetValue(), env.SupabaseSecret.GetValue())
+	client, err := upload.NewUploadClient(supabaseUrl, supabaseSecret)
 	if err != nil {
 		fmt.Println("supabase client error:", err)
 		return

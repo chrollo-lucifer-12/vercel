@@ -7,10 +7,6 @@ on:
         required: true
       projectSlug:
         required: true
-      apiURL:
-        required: true
-      apiKey:
-        required: true
       bucketId:
         required: true
       deploymentId:
@@ -31,10 +27,9 @@ jobs:
           docker run --rm \
             -e USER_ENV="${{ github.event.inputs.userEnv }}" \
             -e DEPLOYMENT_ID="${{ github.event.inputs.deploymentId }}" \
-            -e REDIS_URL="${{ github.event.inputs.redisURL }}" \
             -e SLUG="${{ github.event.inputs.projectSlug }}" \
             -e GIT_REPOSITORY_URL="${{ github.event.inputs.gitURL }}" \
-            -e API_URL="${{ github.event.inputs.apiURL }}" \
-            -e API_KEY="${{ github.event.inputs.apiKey }}" \
             -e BUCKET_ID="${{ github.event.inputs.bucketId }}" \
+            -e SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+            -e SUPABASE_KEY="${{ secrets.SUPABASE_KEY }}"
             sahil1107/builder-server:latest
