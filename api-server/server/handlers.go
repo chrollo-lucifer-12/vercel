@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chrollo-lucifer-12/api-server/models"
+	"github.com/chrollo-lucifer-12/shared/db"
+	"github.com/chrollo-lucifer-12/shared/env"
+	"github.com/chrollo-lucifer-12/shared/workflow"
 	"github.com/google/uuid"
 	"github.com/sio/coolname"
 	"gorm.io/datatypes"
@@ -40,9 +42,10 @@ type UpdateHashRequest struct {
 	GitURL    string `json:"git_url"`
 }
 
-func (h *ServerClient) queueDeployment(ctx context.Context, project *models.Project, userEnv string) (uuid.UUID, error) {
-
-	d, err := gorm.G[models.Deployment](h.db.Raw()).
+func (h *ServerClient) queueDeployment(ctx context.Context, project *db.Project, userEnv string) (uuid.UUID, error) {
+	apiUrl := env.SupabaseUrl.GetValue()
+	apiKey := env.SupabaseSecret.GetValue()
+	d, err := gorm.G[db.Deployment](h.db.Raw()).
 		Where("project_id = ?", project.ID).
 		Where("status IN ?", []string{"QUEUED", "PENDING"}).
 		Find(ctx)
@@ -58,7 +61,7 @@ func (h *ServerClient) queueDeployment(ctx context.Context, project *models.Proj
 		return uuid.Nil, tx.Error
 	}
 
-	dep := &models.Deployment{
+	dep := &db.Deployment{
 		ProjectID: project.ID,
 		Status:    "QUEUED",
 	}
@@ -73,13 +76,14 @@ func (h *ServerClient) queueDeployment(ctx context.Context, project *models.Proj
 	}
 
 	go func() {
-		if err := h.wClient.TriggerWorkflow(ctx, project.GitUrl, project.SubDomain, dep.ID.String(), userEnv); err != nil {
-			_ = h.db.Raw().Model(&models.Deployment{}).
+		if err := h.wClient.TriggerWorkflow(ctx, workflow.TriggerWorkflowConfig{Owner: "chrollo-lucifer-12", Repo: "vercel", WorkflowFile: "build.yml", Ref: "main",
+			Inputs: workflow.Input{GitURL: project.GitUrl, ApiURL: apiUrl, ApiKey: apiKey, BucketID: "builds", ProjectSlug: project.SubDomain, DeploymentID: dep.ID.String(), UserEnv: userEnv}}); err != nil {
+			_ = h.db.Raw().Model(&db.Deployment{}).
 				Where("id = ?", dep.ID).
 				Update("status", "FAILED")
 			log.Println("failed to trigger workflow:", err)
 		} else {
-			_ = h.db.Raw().Model(&models.Deployment{}).
+			_ = h.db.Raw().Model(&db.Deployment{}).
 				Where("id = ?", dep.ID).
 				Update("status", "PENDING")
 		}
@@ -142,7 +146,7 @@ func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	project := models.Project{
+	project := db.Project{
 		Name:      req.ProjectName,
 		GitUrl:    req.GithubURL,
 		SubDomain: subdomain,
@@ -168,14 +172,14 @@ func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
 		hash = strings.TrimSpace(parts[0])
 	}
 
-	err = h.db.CreateHash(ctx, &models.GitHash{ProjectID: project.ID, Hash: hash})
+	err = h.db.CreateHash(ctx, &db.GitHash{ProjectID: project.ID, Hash: hash})
 	if err != nil {
 		log.Fatal(err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	go h.r.PublishLog(ctx, project.ID.String(), project.GitUrl, hash)
+	//	go h.r.PublishLog(ctx, project.ID.String(), project.GitUrl, hash)
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{
@@ -198,27 +202,27 @@ func (h *ServerClient) registerLogsRoutes(w http.ResponseWriter, r *http.Request
 
 	ctx := context.Background()
 
-	var newLogs []models.LogEvent
+	var newLogs []db.LogEvent
 
 	for _, l := range logs {
 
 		deploymentID := l.DeploymentID
 
 		if l.Slug != "" {
-			var deployment models.Deployment
+			var deployment db.Deployment
 			h.db.Raw().Where("slug = ?", l.Slug).Find(&deployment)
 			deploymentID = deployment.ID
 		}
 
 		if l.Log == "FAILED" || l.Log == "SUCCESS" {
-			h.db.UpdateDeployment(ctx, deploymentID, models.Deployment{Status: l.Log})
+			h.db.UpdateDeployment(ctx, deploymentID, db.Deployment{Status: l.Log})
 		}
 
-		newLogs = append(newLogs, models.LogEvent{
+		newLogs = append(newLogs, db.LogEvent{
 			DeploymentID: deploymentID,
 			Log:          l.Log,
 			Metadata:     l.Metadata,
-			Base:         models.Base{CreatedAt: l.CreatedAt},
+			Base:         db.Base{CreatedAt: l.CreatedAt},
 		})
 
 	}
@@ -331,7 +335,7 @@ func (h *ServerClient) updateHashHandler(w http.ResponseWriter, r *http.Request)
 
 	ctx := context.Background()
 
-	if err := h.db.UpdateHash(ctx, projectIDParsed, models.GitHash{Hash: req.Hash}); err != nil {
+	if err := h.db.UpdateHash(ctx, projectIDParsed, db.GitHash{Hash: req.Hash}); err != nil {
 		log.Println("update hash error:", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
@@ -349,7 +353,7 @@ func (h *ServerClient) updateHashHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	go h.r.PublishLog(ctx, req.ProjectID, req.GitURL, req.Hash)
+	//	go h.r.PublishLog(ctx, req.ProjectID, req.GitURL, req.Hash)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

@@ -4,44 +4,28 @@ import (
 	"context"
 	"log"
 
-	"github.com/chrollo-lucifer-12/api-server/env"
-	"github.com/chrollo-lucifer-12/api-server/models"
-	"github.com/chrollo-lucifer-12/api-server/redis"
 	"github.com/chrollo-lucifer-12/api-server/server"
-	"github.com/chrollo-lucifer-12/api-server/workflow"
-	"github.com/joho/godotenv"
+	"github.com/chrollo-lucifer-12/shared/db"
+	"github.com/chrollo-lucifer-12/shared/env"
+	"github.com/chrollo-lucifer-12/shared/workflow"
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-		return
-	}
 
-	e, err := env.NewEnv()
+	err := env.Load()
 	if err != nil {
-		log.Fatal(err)
-		return
+		panic(err)
 	}
 
 	ctx := context.Background()
 
-	r, err := redis.NewRedisClient(e.REDIS_URL)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	dsn := env.Dsn.GetValue()
+	db, err := db.NewDB(dsn, ctx)
 
-	db, err := models.NewDB(e.DSN, ctx)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	githubToken := env.GithubToken.GetValue()
+	w := workflow.NewWorkflowClient(ctx, githubToken)
 
-	w := workflow.NewWorkflowClient(ctx)
-
-	h, err := server.NewServerClient(w, db, r)
+	h, err := server.NewServerClient(w, db)
 	if err != nil {
 		log.Fatal(err)
 		return

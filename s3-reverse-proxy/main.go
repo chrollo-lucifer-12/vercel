@@ -1,16 +1,13 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
-	"os"
 	"strings"
 
-	"github.com/chrollo-lucider-12/proxy/redis"
-	"github.com/joho/godotenv"
+	"github.com/chrollo-lucifer-12/shared/env"
 )
 
 const (
@@ -20,18 +17,23 @@ const (
 )
 
 func main() {
-	err := godotenv.Load()
+	// err := godotenv.Load()
+	// if err != nil {
+	// 	log.Fatal("Error loading .env file")
+	// 	return
+	// }
+	//
+	err := env.Load()
 	if err != nil {
-		log.Fatal("Error loading .env file")
-		return
+		panic(err)
 	}
 
-	redisURL := os.Getenv("REDIS_URL")
-	r, err := redis.NewRedisClient(redisURL)
-	if err != nil {
-		log.Fatal(err)
-		return
-	}
+	// redisURL := os.Getenv("REDIS_URL")
+	// r, err := redis.NewRedisClient(redisURL)
+	// if err != nil {
+	// 	log.Fatal(err)
+	// 	return
+	// }
 
 	target, err := url.Parse(BASE_HOST)
 	if err != nil {
@@ -41,13 +43,13 @@ func main() {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		originalPath := resp.Request.Header.Get("X-Original-Path")
-		method := resp.Request.Method
-		status := resp.StatusCode
+		// originalPath := resp.Request.Header.Get("X-Original-Path")
+		// method := resp.Request.Method
+		// status := resp.StatusCode
 		path := resp.Request.URL.Path
-		parts := strings.Split(path, "/")
+		//	parts := strings.Split(path, "/")
 
-		r.PublishLog(context.Background(), status, parts[4], originalPath, method)
+		//		r.PublishLog(context.Background(), status, parts[4], originalPath, method)
 
 		resp.Header.Del("Content-Security-Policy")
 

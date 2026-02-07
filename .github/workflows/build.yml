@@ -13,8 +13,6 @@ on:
         required: true
       bucketId:
         required: true
-      redisURL:
-        required: true
       deploymentId:
         required: true
       userEnv:
@@ -30,17 +28,6 @@ jobs:
 
       - name: Run container and stream logs
         run: |
-          publish() {
-                redis-cli -u "${{ github.event.inputs.redisURL }}" \
-                  XADD logs_stream * \
-                    level "INFO" \
-                    message "$1" \
-                    created_at "$(date '+%Y-%m-%d %H:%M:%S')" \
-                    deployment_id "${{ github.event.inputs.deploymentId }}"
-          }
-
-          publish "🚀 Starting build container..."
-
           docker run --rm \
             -e USER_ENV="${{ github.event.inputs.userEnv }}" \
             -e DEPLOYMENT_ID="${{ github.event.inputs.deploymentId }}" \
@@ -50,9 +37,4 @@ jobs:
             -e API_URL="${{ github.event.inputs.apiURL }}" \
             -e API_KEY="${{ github.event.inputs.apiKey }}" \
             -e BUCKET_ID="${{ github.event.inputs.bucketId }}" \
-            sahil1107/builder-server:latest \
-            2>&1 | while IFS= read -r line; do
-              publish "$line"
-            done
-
-          publish "✅ Build container finished"
+            sahil1107/builder-server:latest

@@ -5,22 +5,23 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/chrollo-lucifer-12/api-server/models"
-	"github.com/chrollo-lucifer-12/api-server/redis"
-	"github.com/chrollo-lucifer-12/api-server/workflow"
+	"github.com/chrollo-lucifer-12/shared/db"
+	"github.com/chrollo-lucifer-12/shared/workflow"
 )
 
 type ServerClient struct {
 	wClient *workflow.WorkflowClient
-	db      *models.DB
-	r       *redis.RedisClient
+	db      *db.DB
 }
 
-func NewServerClient(wClient *workflow.WorkflowClient, db *models.DB, r *redis.RedisClient) (*ServerClient, error) {
+func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient, error) {
 	if wClient == nil {
 		return nil, fmt.Errorf("No workflow client")
 	}
-	return &ServerClient{wClient: wClient, db: db, r: r}, nil
+	if db == nil {
+		return nil, fmt.Errorf("No db client")
+	}
+	return &ServerClient{wClient: wClient, db: db}, nil
 }
 
 func (h *ServerClient) StartHTTP() {

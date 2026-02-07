@@ -6,8 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/chrollo-lucifer-12/build-server/src/redis"
-	"github.com/chrollo-lucifer-12/build-server/src/utils"
+	"github.com/chrollo-lucifer-12/shared/utils"
 	storage_go "github.com/supabase-community/storage-go"
 	"github.com/supabase-community/supabase-go"
 	"golang.org/x/sync/errgroup"
@@ -15,15 +14,14 @@ import (
 
 type UploadClient struct {
 	client *supabase.Client
-	redis  *redis.RedisClient
 }
 
-func NewUploadClient(apiUrl, apiKey string, redis *redis.RedisClient) (*UploadClient, error) {
+func NewUploadClient(apiUrl, apiKey string) (*UploadClient, error) {
 	client, err := supabase.NewClient(apiUrl, apiKey, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &UploadClient{client: client, redis: redis}, nil
+	return &UploadClient{client: client}, nil
 }
 func (u *UploadClient) UploadFile(baseDir, filename, bucketID, slug string) error {
 	file, err := os.Open(filename)

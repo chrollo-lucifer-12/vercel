@@ -1,18 +1,14 @@
 package utils
 
 import (
-	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
-
-	"github.com/chrollo-lucifer-12/build-server/src/redis"
 )
 
 func GetGitSlug(url string) (string, error) {
@@ -45,8 +41,6 @@ func GetPath(path []string) string {
 
 func RunNpmCommand(
 	ctx context.Context,
-	redisClient *redis.RedisClient,
-	channel string,
 	dir string,
 	args ...string,
 ) error {
@@ -59,43 +53,25 @@ func RunNpmCommand(
 	cmd := exec.Command(npm, args...)
 	cmd.Dir = dir
 
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return err
-	}
+	// stdout, err := cmd.StdoutPipe()
+	// if err != nil {
+	// 	return err
+	// }
 
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return err
-	}
+	// stderr, err := cmd.StderrPipe()
+	// if err != nil {
+	// 	return err
+	// }
 
 	if err := cmd.Start(); err != nil {
 		return err
 	}
 
-	go publishLogs(ctx, redisClient, channel, "stdout", stdout)
+	// go publishLogs(ctx, redisClient, channel, "stdout", stdout)
 
-	go publishLogs(ctx, redisClient, channel, "stderr", stderr)
+	// go publishLogs(ctx, redisClient, channel, "stderr", stderr)
 
 	return cmd.Wait()
-}
-
-func publishLogs(
-	ctx context.Context,
-	redisClient *redis.RedisClient,
-	channel string,
-	source string,
-	reader io.Reader,
-) {
-	scanner := bufio.NewScanner(reader)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		msg := fmt.Sprintf("[%s] %s", source, line)
-
-		redisClient.PublishLog(ctx, msg, channel, "INFO")
-	}
 }
 
 func ParseUserEnv(jsonStr string) (map[string]string, error) {
