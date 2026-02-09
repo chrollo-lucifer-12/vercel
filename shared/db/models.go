@@ -48,6 +48,7 @@ type LogEvent struct {
 	Base
 	DeploymentID uuid.UUID `gorm:"type:uuid;index"`
 	Log          string
+	Metadata     datatypes.JSON `gorm:"type:jsonb"`
 }
 
 type WebsiteAnalytics struct {

@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/chrollo-lucifer-12/shared/db"
 	"gorm.io/datatypes"
@@ -17,11 +16,6 @@ func NewCacheStore(db *db.DB) *CacheStore {
 }
 
 func (c *CacheStore) Set(ctx context.Context, key string, val datatypes.JSON) error {
-	count := c.db.CheckKey(ctx, key)
-	if count != 0 {
-		fmt.Println("cache found")
-		return nil
-	}
 	cache := &db.Cache{Key: key, Value: val}
 	err := c.db.CreateCache(ctx, cache)
 	return err

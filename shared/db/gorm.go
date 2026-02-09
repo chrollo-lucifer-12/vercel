@@ -9,6 +9,7 @@ import (
 	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
 )
 
@@ -28,15 +29,15 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{})
-	if err != nil {
-		return nil, err
-	}
+	// err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{})
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	err = db.Exec("ALTER TABLE caches SET UNLOGGED").Error
-	if err != nil {
-		return nil, err
-	}
+	// err = db.Exec("ALTER TABLE caches SET UNLOGGED").Error
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &DB{db: db}, nil
 }
@@ -91,7 +92,10 @@ func (d *DB) CreateDeployment(ctx context.Context, deployment *Deployment) error
 }
 
 func (d *DB) CreateCache(ctx context.Context, cache *Cache) error {
-	return gorm.G[Cache](d.db).Create(ctx, cache)
+	return d.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "key"}},
+		DoUpdates: clause.AssignmentColumns([]string{"value"}),
+	}).Create(cache).Error
 }
 
 func (d *DB) CheckKey(ctx context.Context, key string) int64 {

@@ -30,6 +30,7 @@ jobs:
             -e SLUG="${{ github.event.inputs.projectSlug }}" \
             -e GIT_REPOSITORY_URL="${{ github.event.inputs.gitURL }}" \
             -e BUCKET_ID="${{ github.event.inputs.bucketId }}" \
-            -e SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
-            -e SUPABASE_KEY="${{ secrets.SUPABASE_KEY }}"
+            -e API_URL="${{ secrets.SUPABASE_URL }}" \
+            -e API_KEY="${{ secrets.SUPABASE_KEY }}" \
+            -e DSN="${{ secrets.DSN }}" \
             sahil1107/builder-server:latest
