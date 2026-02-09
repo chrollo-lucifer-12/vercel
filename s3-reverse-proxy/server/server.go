@@ -1,11 +1,18 @@
 package server
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+
+	"github.com/chrollo-lucifer-12/shared/cache"
+	"gorm.io/datatypes"
 )
 
 const (
@@ -14,7 +21,21 @@ const (
 	BASE_PATH = "/storage/v1/object/public/builds"
 )
 
-func Run() error {
+type CacheEntry struct {
+	Status int         `json:"status"`
+	Header http.Header `json:"header"`
+	Body   []byte      `json:"body"`
+}
+
+type ServerClient struct {
+	cache *cache.CacheStore
+}
+
+func NewServerClient(cache *cache.CacheStore) *ServerClient {
+	return &ServerClient{cache: cache}
+}
+
+func (s *ServerClient) Run(ctx context.Context) error {
 
 	target, err := url.Parse(BASE_HOST)
 	if err != nil {
@@ -24,25 +45,26 @@ func Run() error {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		// originalPath := resp.Request.Header.Get("X-Original-Path")
-		// method := resp.Request.Method
-		// status := resp.StatusCode
-		path := resp.Request.URL.Path
-		//	parts := strings.Split(path, "/")
-
-		//		r.PublishLog(context.Background(), status, parts[4], originalPath, method)
+		originalPath := resp.Request.Header.Get("X-Original-Path")
 
 		resp.Header.Del("Content-Security-Policy")
 
-		switch {
-		case strings.HasSuffix(path, ".html"):
-			resp.Header.Set("Content-Type", "text/html; charset=utf-8")
-		case strings.HasSuffix(path, ".js"):
-			resp.Header.Set("Content-Type", "application/javascript")
-		case strings.HasSuffix(path, ".css"):
-			resp.Header.Set("Content-Type", "text/css")
-		case strings.HasSuffix(path, ".svg"):
-			resp.Header.Set("Content-Type", "image/svg+xml")
+		bodyBytes, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return err
+		}
+
+		resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+
+		entry := CacheEntry{
+			Status: resp.StatusCode,
+			Header: resp.Header.Clone(),
+			Body:   bodyBytes,
+		}
+
+		jsonBytes, err := json.Marshal(entry)
+		if err == nil {
+			s.cache.Set(ctx, originalPath, datatypes.JSON(jsonBytes))
 		}
 
 		return nil
@@ -73,7 +95,29 @@ func Run() error {
 		req.URL.Path = BASE_PATH + "/" + subdomain + targetPath
 	}
 
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			value, err := s.cache.Get(ctx, r.URL.Path)
+			if err == nil {
+				var entry CacheEntry
+				if err := json.Unmarshal(value, &entry); err == nil {
+					for k, v := range entry.Header {
+						for _, vv := range v {
+							w.Header().Add(k, vv)
+						}
+					}
+
+					w.WriteHeader(entry.Status)
+					w.Write(entry.Body)
+					return
+				}
+			}
+		}
+
+		proxy.ServeHTTP(w, r)
+	})
+
 	log.Println("Reverse Proxy running on", PORT)
-	err = http.ListenAndServe(PORT, proxy)
+	err = http.ListenAndServe(PORT, handler)
 	return err
 }

@@ -2,6 +2,8 @@ package utils
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -90,4 +92,10 @@ func WriteEnvFile(dir string, envVars map[string]string) error {
 		content += k + "=" + v + "\n"
 	}
 	return os.WriteFile(path, []byte(content), 0644)
+}
+
+func GetCacheKey(subdomain, path string) string {
+	raw := subdomain + ":" + path
+	hash := sha256.Sum256([]byte(raw))
+	return hex.EncodeToString(hash[:])
 }
