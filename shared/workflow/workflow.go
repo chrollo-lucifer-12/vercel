@@ -3,15 +3,17 @@ package workflow
 import (
 	"context"
 
+	"github.com/chrollo-lucifer-12/shared/cache"
 	"github.com/google/go-github/v59/github"
 	"golang.org/x/oauth2"
 )
 
 type WorkflowClient struct {
 	wClient *github.Client
+	cache   *cache.CacheStore
 }
 
-func NewWorkflowClient(ctx context.Context, githubToken string) *WorkflowClient {
+func NewWorkflowClient(ctx context.Context, githubToken string, cache *cache.CacheStore) *WorkflowClient {
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: githubToken},
 	)
@@ -19,7 +21,7 @@ func NewWorkflowClient(ctx context.Context, githubToken string) *WorkflowClient 
 
 	client := github.NewClient(tc)
 
-	return &WorkflowClient{wClient: client}
+	return &WorkflowClient{wClient: client, cache: cache}
 }
 
 type Input struct {
@@ -41,6 +43,7 @@ type TriggerWorkflowConfig struct {
 }
 
 func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, config TriggerWorkflowConfig) error {
+
 	owner := config.Owner
 	repo := config.Repo
 	workflowFile := config.WorkflowFile
@@ -61,6 +64,10 @@ func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, config TriggerWork
 	}
 
 	_, err := w.wClient.Actions.CreateWorkflowDispatchEventByFileName(ctx, owner, repo, workflowFile, event)
+	if err != nil {
+		return err
+	}
+	err = w.cache.Delete(ctx, config.Inputs.ProjectSlug)
 
 	return err
 }

@@ -3,7 +3,7 @@ package server
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -12,7 +12,6 @@ import (
 	"strings"
 
 	"github.com/chrollo-lucifer-12/shared/cache"
-	"gorm.io/datatypes"
 )
 
 const (
@@ -24,7 +23,7 @@ const (
 type CacheEntry struct {
 	Status int         `json:"status"`
 	Header http.Header `json:"header"`
-	Body   []byte      `json:"body"`
+	Body   string      `json:"body"`
 }
 
 type ServerClient struct {
@@ -45,27 +44,36 @@ func (s *ServerClient) Run(ctx context.Context) error {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
-		originalPath := resp.Request.Header.Get("X-Original-Path")
 
+		path := resp.Request.URL.Path
+		resp.Header.Del("Set-Cookie")
 		resp.Header.Del("Content-Security-Policy")
+
+		resp.Header.Set("Content-Security-Policy",
+			"default-src 'self'; "+
+				"script-src 'self' 'unsafe-inline'; "+
+				"style-src 'self' 'unsafe-inline'; "+
+				"img-src 'self' data:;")
+
+		switch {
+		case strings.HasSuffix(path, ".html"):
+			resp.Header.Set("Content-Type", "text/html; charset=utf-8")
+		case strings.HasSuffix(path, ".js"):
+			resp.Header.Set("Content-Type", "application/javascript")
+		case strings.HasSuffix(path, ".css"):
+			resp.Header.Set("Content-Type", "text/css")
+		case strings.HasSuffix(path, ".svg"):
+			resp.Header.Set("Content-Type", "image/svg+xml")
+		}
 
 		bodyBytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return err
 		}
+		fmt.Println("body", string(bodyBytes))
 
-		resp.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-
-		entry := CacheEntry{
-			Status: resp.StatusCode,
-			Header: resp.Header.Clone(),
-			Body:   bodyBytes,
-		}
-
-		jsonBytes, err := json.Marshal(entry)
-		if err == nil {
-			s.cache.Set(ctx, originalPath, datatypes.JSON(jsonBytes))
-		}
+		resp.Body.Close()
+		resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 
 		return nil
 	}
@@ -77,47 +85,17 @@ func (s *ServerClient) Run(ctx context.Context) error {
 		subdomain := strings.Split(host, ".")[0]
 		path := req.URL.Path
 
-		var targetPath string
-
-		if strings.Contains(path, ".") {
-			targetPath = path
-		} else {
-			if path == "/" {
-				targetPath = "/index.html"
-			} else {
-				targetPath = "/index.html"
-			}
+		if path == "/" {
+			path = "/index.html"
 		}
 
 		req.URL.Scheme = target.Scheme
 		req.URL.Host = target.Host
 		req.Host = target.Host
-		req.URL.Path = BASE_PATH + "/" + subdomain + targetPath
+		req.URL.Path = BASE_PATH + "/" + subdomain + path
 	}
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			value, err := s.cache.Get(ctx, r.URL.Path)
-			if err == nil {
-				var entry CacheEntry
-				if err := json.Unmarshal(value, &entry); err == nil {
-					for k, v := range entry.Header {
-						for _, vv := range v {
-							w.Header().Add(k, vv)
-						}
-					}
-
-					w.WriteHeader(entry.Status)
-					w.Write(entry.Body)
-					return
-				}
-			}
-		}
-
-		proxy.ServeHTTP(w, r)
-	})
-
 	log.Println("Reverse Proxy running on", PORT)
-	err = http.ListenAndServe(PORT, handler)
+	err = http.ListenAndServe(PORT, proxy)
 	return err
 }

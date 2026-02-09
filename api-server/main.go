@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"github.com/chrollo-lucifer-12/api-server/server"
+	"github.com/chrollo-lucifer-12/shared/cache"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/env"
 	"github.com/chrollo-lucifer-12/shared/workflow"
@@ -25,8 +26,10 @@ func main() {
 		panic(err)
 	}
 
+	c := cache.NewCacheStore(db)
+
 	githubToken := env.GithubToken.GetValue()
-	w := workflow.NewWorkflowClient(ctx, githubToken)
+	w := workflow.NewWorkflowClient(ctx, githubToken, c)
 
 	h, err := server.NewServerClient(w, db)
 	if err != nil {

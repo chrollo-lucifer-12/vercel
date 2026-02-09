@@ -94,6 +94,16 @@ func (d *DB) CreateCache(ctx context.Context, cache *Cache) error {
 	return gorm.G[Cache](d.db).Create(ctx, cache)
 }
 
+func (d *DB) CheckKey(ctx context.Context, key string) int64 {
+	count, _ := gorm.G[Cache](d.db).Where("key = ?", key).Count(ctx, key)
+	return count
+}
+
+func (d *DB) DeleteCache(ctx context.Context, key string) error {
+	_, err := gorm.G[Cache](d.db).Where("key = ?", key).Delete(ctx)
+	return err
+}
+
 func (d *DB) GetCache(ctx context.Context, key string) (datatypes.JSON, error) {
 	cache, err := gorm.G[Cache](d.db).Where("key = ?", key).First(ctx)
 	return cache.Value, err

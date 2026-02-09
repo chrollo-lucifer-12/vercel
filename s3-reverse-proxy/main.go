@@ -32,4 +32,5 @@ func main() {
 	if err := s.Run(ctx); err != nil {
 		log.Fatalf("could not start the server: %v", err)
 	}
+
 }

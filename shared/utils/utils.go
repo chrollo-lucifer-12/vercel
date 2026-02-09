@@ -55,23 +55,9 @@ func RunNpmCommand(
 	cmd := exec.Command(npm, args...)
 	cmd.Dir = dir
 
-	// stdout, err := cmd.StdoutPipe()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// stderr, err := cmd.StderrPipe()
-	// if err != nil {
-	// 	return err
-	// }
-
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-
-	// go publishLogs(ctx, redisClient, channel, "stdout", stdout)
-
-	// go publishLogs(ctx, redisClient, channel, "stderr", stderr)
 
 	return cmd.Wait()
 }
