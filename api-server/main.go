@@ -21,6 +21,9 @@ func main() {
 
 	dsn := env.Dsn.GetValue()
 	db, err := db.NewDB(dsn, ctx)
+	if err != nil {
+		panic(err)
+	}
 
 	githubToken := env.GithubToken.GetValue()
 	w := workflow.NewWorkflowClient(ctx, githubToken)

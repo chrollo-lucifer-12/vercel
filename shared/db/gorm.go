@@ -2,9 +2,11 @@ package db
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
@@ -15,6 +17,10 @@ type DB struct {
 }
 
 func NewDB(dsn string, ctx context.Context) (*DB, error) {
+
+	if dsn == "" {
+		return nil, fmt.Errorf("No dsn")
+	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
@@ -22,7 +28,12 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{})
+	err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{})
+	if err != nil {
+		return nil, err
+	}
+
+	err = db.Exec("ALTER TABLE caches SET UNLOGGED").Error
 	if err != nil {
 		return nil, err
 	}
@@ -77,6 +88,15 @@ func (d *DB) DeleteProject(ctx context.Context, id uuid.UUID) error {
 
 func (d *DB) CreateDeployment(ctx context.Context, deployment *Deployment) error {
 	return gorm.G[Deployment](d.db).Create(ctx, deployment)
+}
+
+func (d *DB) CreateCache(ctx context.Context, cache *Cache) error {
+	return gorm.G[Cache](d.db).Create(ctx, cache)
+}
+
+func (d *DB) GetCache(ctx context.Context, key string) (datatypes.JSON, error) {
+	cache, err := gorm.G[Cache](d.db).Where("key = ?", key).First(ctx)
+	return cache.Value, err
 }
 
 func (d *DB) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {

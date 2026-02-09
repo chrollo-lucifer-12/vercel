@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
@@ -55,4 +56,10 @@ type WebsiteAnalytics struct {
 	Method       string
 	OriginalPath string
 	Slug         string
+}
+
+type Cache struct {
+	Base
+	Key   string         `gorm:"unique;index"`
+	Value datatypes.JSON `gorm:"type:jsonb"`
 }

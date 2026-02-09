@@ -1,7 +1,6 @@
 package env
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -31,11 +30,15 @@ func isDevelopmentMode() bool {
 }
 
 func Load() error {
-	if isDevelopmentMode() {
-		if err := godotenv.Load(".env"); err != nil {
-			return fmt.Errorf("failed to load .env file: %w", err)
-		}
+	_, err := os.Lstat(".env")
+	if err != nil {
+		return err
 	}
 
+	if err := godotenv.Load(".env"); err != nil {
+		if !os.IsNotExist(err) {
+			return err
+		}
+	}
 	return nil
 }
