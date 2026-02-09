@@ -1,17 +1,16 @@
 package server
 
 import (
-	"bytes"
 	"context"
-	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/chrollo-lucifer-12/shared/cache"
+	"github.com/chrollo-lucifer-12/shared/db"
 )
 
 const (
@@ -28,10 +27,33 @@ type CacheEntry struct {
 
 type ServerClient struct {
 	cache *cache.CacheStore
+	db    *db.DB
 }
 
-func NewServerClient(cache *cache.CacheStore) *ServerClient {
-	return &ServerClient{cache: cache}
+func NewServerClient(cache *cache.CacheStore, db *db.DB) *ServerClient {
+	return &ServerClient{cache: cache, db: db}
+}
+
+func (s *ServerClient) trackRequest(subdomain, path, method string, statusCode int, responseTimeMs int, userAgent, ipAddress, referer string) {
+	request := db.WebsiteAnalytics{
+		Subdomain:      subdomain,
+		Path:           path,
+		Method:         method,
+		StatusCode:     statusCode,
+		ResponseTimeMs: responseTimeMs,
+		UserAgent:      userAgent,
+		IPAddress:      ipAddress,
+		Referer:        referer,
+	}
+
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		if err := s.db.CreateAnalytcis(bgCtx, &request); err != nil {
+			log.Printf("Failed to track request for %s%s: %v", subdomain, path, err)
+		}
+	}()
 }
 
 func (s *ServerClient) Run(ctx context.Context) error {
@@ -44,6 +66,26 @@ func (s *ServerClient) Run(ctx context.Context) error {
 	proxy := httputil.NewSingleHostReverseProxy(target)
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
+
+		startTime, ok := resp.Request.Context().Value("startTime").(time.Time)
+		if !ok {
+			startTime = time.Now()
+		}
+		responseTimeMs := int(time.Since(startTime).Milliseconds())
+		originalHost, _ := resp.Request.Context().Value("originalHost").(string)
+		host := strings.Split(originalHost, ":")[0]
+		subdomain := strings.TrimSuffix(host, ".localhost")
+
+		s.trackRequest(
+			subdomain,
+			resp.Request.URL.Path,
+			resp.Request.Method,
+			resp.StatusCode,
+			responseTimeMs,
+			resp.Request.UserAgent(),
+			strings.Split(resp.Request.RemoteAddr, ":")[0],
+			resp.Request.Referer(),
+		)
 
 		path := resp.Request.URL.Path
 		resp.Header.Del("Set-Cookie")
@@ -66,19 +108,13 @@ func (s *ServerClient) Run(ctx context.Context) error {
 			resp.Header.Set("Content-Type", "image/svg+xml")
 		}
 
-		bodyBytes, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return err
-		}
-		fmt.Println("body", string(bodyBytes))
-
-		resp.Body.Close()
-		resp.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-
 		return nil
 	}
 
 	proxy.Director = func(req *http.Request) {
+		ctx := context.WithValue(req.Context(), "startTime", time.Now())
+		ctx = context.WithValue(ctx, "originalHost", req.Host)
+		*req = *req.WithContext(ctx)
 		req.Header.Set("X-Original-Path", req.URL.Path)
 
 		host := strings.Split(req.Host, ":")[0]

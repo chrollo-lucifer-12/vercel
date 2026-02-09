@@ -27,7 +27,7 @@ func main() {
 
 	cache := cache.NewCacheStore(db)
 
-	s := server.NewServerClient(cache)
+	s := server.NewServerClient(cache, db)
 
 	if err := s.Run(ctx); err != nil {
 		log.Fatalf("could not start the server: %v", err)

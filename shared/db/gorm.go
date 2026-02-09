@@ -29,15 +29,15 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, err
 	}
 
-	// err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{})
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{}, &WebsiteAnalytics{})
+	if err != nil {
+		return nil, err
+	}
 
-	// err = db.Exec("ALTER TABLE caches SET UNLOGGED").Error
-	// if err != nil {
-	// 	return nil, err
-	// }
+	err = db.Exec("ALTER TABLE caches SET UNLOGGED").Error
+	if err != nil {
+		return nil, err
+	}
 
 	return &DB{db: db}, nil
 }
@@ -213,4 +213,8 @@ func (d *DB) DeleteLogEvent(ctx context.Context, id uuid.UUID) error {
 		Delete(ctx)
 
 	return err
+}
+
+func (d *DB) CreateAnalytcis(ctx context.Context, w *WebsiteAnalytics) error {
+	return gorm.G[WebsiteAnalytics](d.db).Create(ctx, w)
 }
