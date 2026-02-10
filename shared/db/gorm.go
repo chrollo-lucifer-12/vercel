@@ -29,15 +29,15 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{}, &WebsiteAnalytics{})
-	if err != nil {
-		return nil, err
-	}
+	// err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{}, &WebsiteAnalytics{})
+	// if err != nil {
+	// 	return nil, err
+	// }
 
-	err = db.Exec("ALTER TABLE caches SET UNLOGGED").Error
-	if err != nil {
-		return nil, err
-	}
+	// err = db.Exec("ALTER TABLE caches SET UNLOGGED").Error
+	// if err != nil {
+	// 	return nil, err
+	// }
 
 	return &DB{db: db}, nil
 }

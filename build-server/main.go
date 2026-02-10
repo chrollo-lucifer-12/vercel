@@ -5,30 +5,38 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/chrollo-lucifer-12/build-server/logs"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/upload"
 	"github.com/chrollo-lucifer-12/shared/utils"
 	"github.com/google/uuid"
 )
 
-func insertLogs(d *db.DB, npmLogs1, npmLogs2 []string, logs []db.LogEvent, slugUUID uuid.UUID, ctx context.Context) {
-	maxRetries := 3
-	for attempt := 1; attempt <= maxRetries; attempt++ {
-		allLogs := append([]db.LogEvent{}, logs...)
-		for _, logLine := range npmLogs1 {
-			allLogs = append(allLogs, db.LogEvent{DeploymentID: slugUUID, Log: logLine})
-		}
-		for _, logLine := range npmLogs2 {
-			allLogs = append(allLogs, db.LogEvent{DeploymentID: slugUUID, Log: logLine})
-		}
+func StreamLogsToDB(
+	ctx context.Context,
+	d *db.DB,
+	logChan <-chan db.LogEvent,
+	done chan<- struct{},
+) {
 
-		if err := d.CreateLogEvents(ctx, &allLogs); err != nil {
-			fmt.Printf("Attempt %d: failed to insert logs: %v\n", attempt, err)
-		} else {
+	for {
+		select {
+		case logEvent, ok := <-logChan:
+			if !ok {
+				done <- struct{}{}
+				return
+			}
+
+			err := d.CreateLogEvents(ctx, &[]db.LogEvent{logEvent})
+			if err != nil {
+				fmt.Println("log insert failed:", err)
+			}
+
+		case <-ctx.Done():
+			done <- struct{}{}
 			return
 		}
 	}
-
 }
 
 func main() {
@@ -41,20 +49,21 @@ func main() {
 	getUserEnv := os.Getenv("USER_ENV")
 	bucketID := os.Getenv("BUCKET_ID")
 	deploymentId := os.Getenv("DEPLOYMENT_ID")
-
-	slugUUID, _ := uuid.Parse(deploymentId)
+	deploymentIdUUID, _ := uuid.Parse(deploymentId)
+	dispatcher := logs.NewLogDispatcher(200)
+	done := make(chan struct{})
 
 	userEnv, err := utils.ParseUserEnv(getUserEnv)
 	if err != nil {
 		panic(err)
 	}
 
-	var logs []db.LogEvent
-
 	d, err := db.NewDB(dsn, ctx)
 	if err != nil {
 		panic(err)
 	}
+
+	go StreamLogsToDB(ctx, d, dispatcher.Channel(), done)
 
 	if err := utils.WriteEnvFile("/home/app/output", userEnv); err != nil {
 		fmt.Println("Write env file error:", err)
@@ -67,37 +76,35 @@ func main() {
 		return
 	}
 
-	logs = append(logs, db.LogEvent{DeploymentID: slugUUID, Log: "Running npm install/build..."})
-	fmt.Println("Running npm install/build...")
-
+	dispatcher.Push(deploymentIdUUID, "Running npm install/build...")
 	outputDir := utils.GetPath([]string{"home", "app", "output"})
 
-	npmLogs1, err := utils.RunNpmCommand(ctx, outputDir, "install")
+	err = RunNpmCommand(ctx, outputDir, dispatcher, deploymentIdUUID, "install")
 	if err != nil {
-		fmt.Println("npm install failed:", err)
-		logs = append(logs, db.LogEvent{DeploymentID: slugUUID, Log: "npm install failed: " + err.Error()})
-		insertLogs(d, npmLogs1, nil, logs, slugUUID, ctx)
+		dispatcher.Push(deploymentIdUUID, "npm install failed: "+err.Error())
+		dispatcher.Close()
+		<-done
 		return
 	}
 
-	npmLogs2, err := utils.RunNpmCommand(ctx, outputDir, "run", "build")
+	err = RunNpmCommand(ctx, outputDir, dispatcher, deploymentIdUUID, "run", "build")
 	if err != nil {
-		fmt.Println("npm build failed:", err)
-		logs = append(logs, db.LogEvent{DeploymentID: slugUUID, Log: "npm build failed: " + err.Error()})
-		insertLogs(d, npmLogs1, npmLogs2, logs, slugUUID, ctx)
+		dispatcher.Push(deploymentIdUUID, "npm build failed: "+err.Error())
+		dispatcher.Close()
+		<-done
 		return
 	}
 
 	if err := client.UploadBuild(ctx, bucketID, slug); err != nil {
-		fmt.Println("Upload failed:", err)
-		logs = append(logs, db.LogEvent{DeploymentID: slugUUID, Log: "Upload failed: " + err.Error()})
-		insertLogs(d, npmLogs1, npmLogs2, logs, slugUUID, ctx)
+		dispatcher.Push(deploymentIdUUID, "build upload failed: "+err.Error())
+		dispatcher.Close()
+		<-done
 		return
 	}
 
-	fmt.Println("Upload complete!")
-	logs = append(logs, db.LogEvent{DeploymentID: slugUUID, Log: "Build successful!"})
-	insertLogs(d, npmLogs1, npmLogs2, logs, slugUUID, ctx)
+	dispatcher.Push(deploymentIdUUID, "Build successful!")
+	dispatcher.Close()
+	<-done
 
 	os.Exit(0)
 }

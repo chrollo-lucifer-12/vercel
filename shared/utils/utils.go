@@ -1,14 +1,11 @@
 package utils
 
 import (
-	"bufio"
-	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -40,57 +37,6 @@ func GetPath(path []string) string {
 	}
 
 	return dir
-}
-
-func RunNpmCommand(
-	ctx context.Context,
-	dir string,
-	args ...string,
-) ([]string, error) {
-
-	npm := "npm"
-	if runtime.GOOS == "windows" {
-		npm = "npm.cmd"
-	}
-
-	cmd := exec.Command(npm, args...)
-	cmd.Dir = dir
-
-	stdoutPipe, err := cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	stderrPipe, err := cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := cmd.Start(); err != nil {
-		return nil, err
-	}
-
-	logs := []string{}
-
-	go func() {
-		scanner := bufio.NewScanner(stdoutPipe)
-		for scanner.Scan() {
-			logs = append(logs, scanner.Text())
-		}
-	}()
-
-	go func() {
-		scanner := bufio.NewScanner(stderrPipe)
-		for scanner.Scan() {
-			logs = append(logs, scanner.Text())
-		}
-	}()
-
-	if err := cmd.Wait(); err != nil {
-		return logs, err
-	}
-
-	return logs, nil
 }
 
 func ParseUserEnv(jsonStr string) (map[string]string, error) {
