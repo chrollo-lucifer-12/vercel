@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -76,4 +77,9 @@ func HashPassword(password string) (string, error) {
 func CheckPassword(password string, hashedPassword string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
+}
+
+func StringToUUID(idStr string) uuid.UUID {
+	res, _ := uuid.Parse(idStr)
+	return res
 }

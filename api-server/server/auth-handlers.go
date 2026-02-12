@@ -27,8 +27,21 @@ type UserRes struct {
 }
 
 type LoginResponse struct {
-	AccessToken string `json:"access_token"`
-	User        UserRes
+	SessionID             string    `json:"session_id"`
+	RefreshToken          string    `json:"refresh_token"`
+	AccessTokenExpiresAt  time.Time `json:"access_token_expires_at"`
+	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires_at"`
+	AccessToken           string    `json:"access_token"`
+	User                  UserRes
+}
+
+type RenewAccessTokenRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+type RenewAccessTokenRes struct {
+	AccessToken          string    `json:"access_token"`
+	AccessTokenExpiresAt time.Time `json:"access_token_expires_at"`
 }
 
 func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -83,15 +96,30 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	accessToken, _, err := h.auth.Maker.CreateToken(user.ID, user.Email, 15*time.Minute)
+	accessToken, accessClaims, err := h.auth.Maker.CreateToken(user.ID, user.Email, 15*time.Minute)
 
 	if err != nil {
 		http.Error(w, "Error creating token: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	refreshToken, refreshClaims, err := h.auth.Maker.CreateToken(user.ID, user.Email, 7*24*time.Hour)
+
+	newSession := db.Session{
+		ID:           utils.StringToUUID(refreshClaims.RegisteredClaims.ID),
+		UserEmail:    user.Email,
+		RefreshToken: refreshToken,
+		Revoked:      false,
+		ExpiresAt:    refreshClaims.RegisteredClaims.ExpiresAt.Time,
+	}
+	h.auth.CreateSession(ctx, &newSession)
+
 	res := LoginResponse{
-		AccessToken: accessToken,
+		SessionID:             newSession.ID.String(),
+		RefreshToken:          refreshToken,
+		AccessTokenExpiresAt:  accessClaims.RegisteredClaims.ExpiresAt.Time,
+		RefreshTokenExpiresAt: refreshClaims.RegisteredClaims.ExpiresAt.Time,
+		AccessToken:           accessToken,
 		User: UserRes{
 			Name:  user.Name,
 			Email: user.Email,
@@ -101,4 +129,53 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(res)
+}
+
+func (h *ServerClient) logoutUserHandler(w http.ResponseWriter, r *http.Request) {
+
+}
+
+func (h *ServerClient) refreshAccessTokenHandler(w http.ResponseWriter, r *http.Request) {
+	var req RenewAccessTokenRequest
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		http.Error(w, http.ErrBodyNotAllowed.Error(), http.StatusBadRequest)
+		return
+	}
+
+	refreshClaims, err := h.auth.Maker.VerifyToken(req.RefreshToken)
+	if err != nil {
+		http.Error(w, "error verifying refresh token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	ctx := context.Background()
+
+	session, err := h.auth.GetSession(ctx, utils.StringToUUID(refreshClaims.RegisteredClaims.ID))
+	if err != nil {
+		http.Error(w, "error fetching session: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if session.Revoked {
+		http.Error(w, "session is revoked", http.StatusInternalServerError)
+		return
+	}
+
+	if session.UserEmail != refreshClaims.Email {
+		http.Error(w, "invalid session", http.StatusInternalServerError)
+		return
+	}
+
+	accessToken, accessClaims, err := h.auth.Maker.CreateToken(refreshClaims.ID, refreshClaims.Email, 15*time.Minute)
+	if err != nil {
+		http.Error(w, "error creating access token: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(RenewAccessTokenRes{
+		AccessToken:          accessToken,
+		AccessTokenExpiresAt: accessClaims.RegisteredClaims.ExpiresAt.Time,
+	})
 }
