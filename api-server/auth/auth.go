@@ -16,11 +16,16 @@ type UserStoreFuncs struct {
 
 type AuthService struct {
 	userStore UserStoreFuncs
+	Maker     *JWTMaker
 }
 
 func NewAuthService(userStore UserStoreFuncs) *AuthService {
+
+	maker := NewJWTMaker("jowfuuf")
+
 	return &AuthService{
 		userStore: userStore,
+		Maker:     maker,
 	}
 }
 

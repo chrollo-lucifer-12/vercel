@@ -39,6 +39,7 @@ func (h *ServerClient) StartHTTP() {
 	http.HandleFunc("/api/v1/deploy", h.deployHandler)
 	http.HandleFunc("/api/v1/project", h.projectHandler)
 	http.HandleFunc("/api/v1/auth/register", h.registerUserHandler)
+	http.HandleFunc("/api/v1/auth/login", h.loginUserHandler)
 
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
