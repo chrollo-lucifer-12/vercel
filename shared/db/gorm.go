@@ -29,21 +29,45 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, err
 	}
 
-	// err = db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{}, &WebsiteAnalytics{})
-	// if err != nil {
-	// 	return nil, err
-	// }
-
-	// err = db.Exec("ALTER TABLE caches SET UNLOGGED").Error
-	// if err != nil {
-	// 	return nil, err
-	// }
-
 	return &DB{db: db}, nil
 }
 
 func (d *DB) Raw() *gorm.DB {
 	return d.db
+}
+
+func (d *DB) MigrateDB() error {
+	err := d.db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{}, &User{})
+	if err != nil {
+		return err
+	}
+
+	err = d.db.Exec("ALTER TABLE caches SET UNLOGGED").Error
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (d *DB) CreateUser(ctx context.Context, u *User) error {
+	err := gorm.G[User](d.db).Create(ctx, u)
+	return err
+}
+
+func (d *DB) GetUser(ctx context.Context, email string) (User, error) {
+	return gorm.G[User](d.db).Where("email = ?", email).First(ctx)
+}
+
+func (d *DB) UpdateUser(ctx context.Context, u User) error {
+	_, err := gorm.G[User](d.db).Updates(ctx, u)
+
+	return err
+}
+
+func (d *DB) DeleteUser(ctx context.Context, id uuid.UUID) error {
+	_, err := gorm.G[User](d.db).Where("id = ?", id).Delete(ctx)
+	return err
 }
 
 func (d *DB) CreateHash(ctx context.Context, gitHash *GitHash) error {

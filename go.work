@@ -5,4 +5,5 @@ use (
 	./build-server
 	./s3-reverse-proxy
 	./shared
+	./migrate
 )

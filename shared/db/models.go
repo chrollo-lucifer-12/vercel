@@ -69,3 +69,10 @@ type Cache struct {
 	Key   string         `gorm:"unique;index"`
 	Value datatypes.JSON `gorm:"type:jsonb"`
 }
+
+type User struct {
+	Base
+	Name     string `gorm:"not null"`
+	Email    string `gorm:"unique;not null"`
+	Password string `gorm:"not null"`
+}
