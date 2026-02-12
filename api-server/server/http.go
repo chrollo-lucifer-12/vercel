@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 )
@@ -12,6 +13,7 @@ import (
 type ServerClient struct {
 	wClient *workflow.WorkflowClient
 	db      *db.DB
+	auth    *auth.AuthService
 }
 
 func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient, error) {
@@ -21,13 +23,22 @@ func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient
 	if db == nil {
 		return nil, fmt.Errorf("No db client")
 	}
-	return &ServerClient{wClient: wClient, db: db}, nil
+
+	auth := auth.NewAuthService(auth.UserStoreFuncs{
+		CreateUserFn: db.CreateUser,
+		GetUserFn:    db.GetUser,
+		UpdateUserFn: db.UpdateUser,
+		DeleteUserFn: db.DeleteUser,
+	})
+
+	return &ServerClient{wClient: wClient, db: db, auth: auth}, nil
 }
 
 func (h *ServerClient) StartHTTP() {
 
 	http.HandleFunc("/api/v1/deploy", h.deployHandler)
 	http.HandleFunc("/api/v1/project", h.projectHandler)
+	http.HandleFunc("/api/v1/auth/register", h.registerUserHandler)
 
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
