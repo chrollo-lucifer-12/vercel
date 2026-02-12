@@ -76,3 +76,11 @@ type User struct {
 	Email    string `gorm:"unique;not null"`
 	Password string `gorm:"not null"`
 }
+
+type Session struct {
+	ID           uuid.UUID `gorm:"primaryKey"`
+	UserEmail    string    `gorm:"not null"`
+	RefreshToken string    `gorm:"not null"`
+	Revoked      bool
+	ExpiresAt    time.Time
+}

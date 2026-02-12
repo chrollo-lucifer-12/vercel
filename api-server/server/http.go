@@ -29,6 +29,11 @@ func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient
 		GetUserFn:    db.GetUser,
 		UpdateUserFn: db.UpdateUser,
 		DeleteUserFn: db.DeleteUser,
+	}, auth.TokenStoreFuncs{
+		CreateSessionFn: db.CreateSession,
+		GetSessionFn:    db.GetSession,
+		RevokeSessionFn: db.RevokeSession,
+		DeleteSessionFn: db.DeleteSession,
 	})
 
 	return &ServerClient{wClient: wClient, db: db, auth: auth}, nil

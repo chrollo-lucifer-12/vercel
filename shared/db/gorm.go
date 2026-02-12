@@ -70,6 +70,25 @@ func (d *DB) DeleteUser(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+func (d *DB) CreateSession(ctx context.Context, s *Session) error {
+	return gorm.G[Session](d.db).Create(ctx, s)
+}
+
+func (d *DB) GetSession(ctx context.Context, id uuid.UUID) (*Session, error) {
+	session, err := gorm.G[Session](d.db).Where("id = ?", id).First(ctx)
+	return &session, err
+}
+
+func (d *DB) RevokeSession(ctx context.Context, s Session) error {
+	_, err := gorm.G[Session](d.db).Updates(ctx, s)
+	return err
+}
+
+func (d *DB) DeleteSession(ctx context.Context, id uuid.UUID) error {
+	_, err := gorm.G[Session](d.db).Where("id = ?", id).Delete(ctx)
+	return err
+}
+
 func (d *DB) CreateHash(ctx context.Context, gitHash *GitHash) error {
 	return gorm.G[GitHash](d.db).Create(ctx, gitHash)
 }

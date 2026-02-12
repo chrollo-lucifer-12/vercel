@@ -14,19 +14,44 @@ type UserStoreFuncs struct {
 	DeleteUserFn func(ctx context.Context, id uuid.UUID) error
 }
 
-type AuthService struct {
-	userStore UserStoreFuncs
-	Maker     *JWTMaker
+type TokenStoreFuncs struct {
+	CreateSessionFn func(ctx context.Context, s *db.Session) error
+	GetSessionFn    func(ctx context.Context, id uuid.UUID) (*db.Session, error)
+	RevokeSessionFn func(ctx context.Context, s db.Session) error
+	DeleteSessionFn func(ctx context.Context, id uuid.UUID) error
 }
 
-func NewAuthService(userStore UserStoreFuncs) *AuthService {
+type AuthService struct {
+	userStore  UserStoreFuncs
+	Maker      *JWTMaker
+	tokenStore TokenStoreFuncs
+}
+
+func NewAuthService(userStore UserStoreFuncs, tokenStore TokenStoreFuncs) *AuthService {
 
 	maker := NewJWTMaker("jowfuuf")
 
 	return &AuthService{
-		userStore: userStore,
-		Maker:     maker,
+		userStore:  userStore,
+		Maker:      maker,
+		tokenStore: tokenStore,
 	}
+}
+
+func (a *AuthService) CreateSession(ctx context.Context, s *db.Session) error {
+	return a.tokenStore.CreateSessionFn(ctx, s)
+}
+
+func (a *AuthService) GetSession(ctx context.Context, id uuid.UUID) (*db.Session, error) {
+	return a.tokenStore.GetSessionFn(ctx, id)
+}
+
+func (a *AuthService) RevokeSession(ctx context.Context, s db.Session) error {
+	return a.tokenStore.RevokeSessionFn(ctx, s)
+}
+
+func (a *AuthService) DeleteSession(ctx context.Context, id uuid.UUID) error {
+	return a.tokenStore.DeleteSessionFn(ctx, id)
 }
 
 func (a *AuthService) CreateUser(ctx context.Context, u *db.User) error {
