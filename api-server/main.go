@@ -37,5 +37,7 @@ func main() {
 		return
 	}
 
-	h.StartHTTP()
+	if err := h.Start(); err != nil {
+		panic(err)
+	}
 }

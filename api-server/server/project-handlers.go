@@ -1,144 +1,25 @@
 package server
 
 import (
-	"context"
 	"encoding/json"
 	"log"
 	"net/http"
-	"os/exec"
-	"strings"
-	"time"
 
+	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
-	"github.com/chrollo-lucifer-12/shared/env"
-	"github.com/chrollo-lucifer-12/shared/workflow"
-	"github.com/google/uuid"
 	"github.com/sio/coolname"
-	"gorm.io/datatypes"
-	"gorm.io/gorm"
 )
 
-type DeployRequest struct {
-	ProjectID string `json:"project_id"`
-	UserEnv   string `json:"user_env"`
-}
-
-type ProjectRequest struct {
-	ProjectName string `json:"project_name"`
-	GithubURL   string `json:"github_url"`
-}
-
-type LogRequest struct {
-	DeploymentID uuid.UUID      `json:"deployment_id"`
-	Log          string         `json:"log"`
-	Metadata     datatypes.JSON `json:"metadata"`
-	CreatedAt    time.Time      `json:"created_at"`
-	Slug         string         `json:"slug"`
-}
-
-type UpdateHashRequest struct {
-	ProjectID string `json:"project_id"`
-	Hash      string `json:"hash"`
-	GitURL    string `json:"git_url"`
-}
-
-func (h *ServerClient) queueDeployment(ctx context.Context, project *db.Project, userEnv string) (uuid.UUID, error) {
-	apiUrl := env.SupabaseUrl.GetValue()
-	apiKey := env.SupabaseSecret.GetValue()
-	d, err := gorm.G[db.Deployment](h.db.Raw()).
-		Where("project_id = ?", project.ID).
-		Where("status IN ?", []string{"QUEUED", "PENDING"}).
-		Find(ctx)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	if len(d) > 0 {
-		return uuid.Nil, gorm.ErrInvalidData
-	}
-
-	tx := h.db.Raw().Begin()
-	if tx.Error != nil {
-		return uuid.Nil, tx.Error
-	}
-
-	dep := &db.Deployment{
-		ProjectID: project.ID,
-		Status:    "QUEUED",
-	}
-
-	if err := tx.Create(dep).Error; err != nil {
-		tx.Rollback()
-		return uuid.Nil, err
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
-		return uuid.Nil, err
-	}
-
-	go func() {
-		if err := h.wClient.TriggerWorkflow(ctx, workflow.TriggerWorkflowConfig{Owner: "chrollo-lucifer-12", Repo: "vercel", WorkflowFile: "build.yml", Ref: "main",
-			Inputs: workflow.Input{GitURL: project.GitUrl, ApiURL: apiUrl, ApiKey: apiKey, BucketID: "builds", ProjectSlug: project.SubDomain, DeploymentID: dep.ID.String(), UserEnv: userEnv}}); err != nil {
-			_ = h.db.Raw().Model(&db.Deployment{}).
-				Where("id = ?", dep.ID).
-				Update("status", "FAILED")
-			log.Println("failed to trigger workflow:", err)
-		} else {
-			_ = h.db.Raw().Model(&db.Deployment{}).
-				Where("id = ?", dep.ID).
-				Update("status", "PENDING")
-		}
-	}()
-
-	return dep.ID, nil
-}
-
-func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
-	var req DeployRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	projectIDUUID, err := uuid.Parse(req.ProjectID)
-	if err != nil {
-		http.Error(w, "invalid project_id: "+err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	ctx := context.Background()
-	project, err := h.db.GetProjectByID(ctx, projectIDUUID)
-	if err != nil {
-		http.Error(w, "project not found: "+err.Error(), http.StatusNotFound)
-		return
-	}
-
-	depID, err := h.queueDeployment(ctx, &project, req.UserEnv)
-	if err != nil {
-		if err == gorm.ErrInvalidData {
-			http.Error(w, "another deployment is running", http.StatusConflict)
-			return
-		}
-		http.Error(w, "failed to queue deployment: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	resp := map[string]interface{}{
-		"status":        "queued",
-		"projectSlug":   project.SubDomain,
-		"deployment_id": depID.String(),
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
-}
-
-func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
+func (h *ServerClient) createProjectHandler(w http.ResponseWriter, r *http.Request) {
 	var req ProjectRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request body", http.StatusBadRequest)
 		return
 	}
+
+	claims := r.Context().Value(authKey{}).(*auth.UserClaims)
+	userID := claims.ID
 
 	subdomain, err := coolname.Slug()
 	if err != nil {
@@ -150,40 +31,74 @@ func (h *ServerClient) projectHandler(w http.ResponseWriter, r *http.Request) {
 		Name:      req.ProjectName,
 		GitUrl:    req.GithubURL,
 		SubDomain: subdomain,
+		UserID:    userID,
 	}
 
-	ctx := context.Background()
+	ctx := r.Context()
 	if err := h.db.CreateProject(ctx, &project); err != nil {
 		log.Println("create project error:", err)
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	out, err := exec.Command("git", "ls-remote", req.GithubURL, "main").Output()
-	if err != nil {
-		log.Fatal(err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	var hash string
-	parts := strings.Split(string(out), "\t")
-	if len(parts) > 0 {
-		hash = strings.TrimSpace(parts[0])
-	}
-
-	err = h.db.CreateHash(ctx, &db.GitHash{ProjectID: project.ID, Hash: hash})
-	if err != nil {
-		log.Fatal(err)
-		http.Error(w, "internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	//	go h.r.PublishLog(ctx, project.ID.String(), project.GitUrl, hash)
-
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{
 		"name": project.Name,
 		"id":   project.ID.String(),
 	})
+}
+
+func (h *ServerClient) getAllProjectsHandler(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value(authKey{}).(*auth.UserClaims)
+	userID := claims.ID
+
+	ctx := r.Context()
+	projects, err := h.db.GetAllProjects(ctx, userID)
+
+	if err != nil {
+		http.Error(w, "error getting projects: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(projects)
+}
+
+func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	project, _, err := verifyDeployment(r.URL.Path, r, h.db)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	projectRes, err := h.db.GetProjectByID(ctx, project.ID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	json.NewEncoder(w).Encode(projectRes)
+}
+
+func (h *ServerClient) deleteProjectHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	project, _, err := verifyDeployment(r.URL.Path, r, h.db)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+	}
+
+	err = h.db.DeleteProject(ctx, project.ID)
+	if err != nil {
+		http.Error(w, "failed to delete project", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

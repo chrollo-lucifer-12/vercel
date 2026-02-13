@@ -1,22 +1,20 @@
 package server
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 )
-
-type Middleware func(http.Handler) http.Handler
-
-type ServerClient struct {
-	wClient *workflow.WorkflowClient
-	db      *db.DB
-	auth    *auth.AuthService
-}
 
 func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient, error) {
 	if wClient == nil {
@@ -38,7 +36,44 @@ func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient
 		DeleteSessionFn: db.DeleteSession,
 	})
 
+	server := &ServerClient{
+		wClient: wClient,
+		db:      db,
+		auth:    auth,
+	}
+
+	mux := http.NewServeMux()
+	server.registerRoutes(mux)
+
+	server.server = &http.Server{
+		Addr:    ":9000",
+		Handler: mux,
+	}
+
 	return &ServerClient{wClient: wClient, db: db, auth: auth}, nil
+}
+
+func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
+
+	protectedRoutes := map[string]http.HandlerFunc{
+		"/api/v1/deploy/create":  s.deployHandler,
+		"/api/v1/project/create": s.createProjectHandler,
+		"/api/v1/projects":       s.getAllProjectsHandler,
+		"/api/v1/project":        s.getProjectHandler,
+		"/api/v1/project/delete": s.deleteProjectHandler,
+		"/api/v1/auth/logout":    s.logoutUserHandler,
+		"/api/v1/deployments":    s.getAllDeploymentsHandler,
+		"/api/v1/deplyoment":     s.getDeploymentHandler,
+	}
+
+	for path, handler := range protectedRoutes {
+		mux.Handle(path, Chain(handler, s.authMiddleware))
+	}
+
+	mux.HandleFunc("/api/v1/auth/register", s.registerUserHandler)
+	mux.HandleFunc("/api/v1/auth/login", s.loginUserHandler)
+	mux.HandleFunc("/api/v1/auth/refresh", s.refreshAccessTokenHandler)
+
 }
 
 func Chain(h http.Handler, middlewares ...Middleware) http.Handler {
@@ -48,30 +83,32 @@ func Chain(h http.Handler, middlewares ...Middleware) http.Handler {
 	return h
 }
 
-func (h *ServerClient) StartHTTP() {
+func (h *ServerClient) Start() error {
 
-	http.Handle(
-		"/api/v1/deploy",
-		Chain(
-			http.HandlerFunc(h.deployHandler),
-			h.authMiddleware,
-		),
-	)
-	http.Handle("/api/v1/project",
-		Chain(
-			http.HandlerFunc(h.projectHandler),
-			h.authMiddleware,
-		),
-	)
-	http.Handle("/api/v1/auth/logout",
-		Chain(
-			http.HandlerFunc(h.logoutUserHandler),
-			h.authMiddleware,
-		),
-	)
-	http.HandleFunc("/api/v1/auth/register", h.registerUserHandler)
-	http.HandleFunc("/api/v1/auth/login", h.loginUserHandler)
-	http.HandleFunc("/api/v1/auth/refresh", h.refreshAccessTokenHandler)
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
-	log.Fatal(http.ListenAndServe(":9000", nil))
+	go func() {
+		log.Printf("Starting server on %s", h.server.Addr)
+		if err := h.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("Server error: %v", err)
+		}
+	}()
+
+	<-stop
+	log.Println("Shutting down server gracefully...")
+
+	return h.Shutdown()
+}
+
+func (h *ServerClient) Shutdown() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	if err := h.server.Shutdown(ctx); err != nil {
+		return fmt.Errorf("server shutdown failed: %w", err)
+	}
+
+	log.Println("Server stopped")
+	return nil
 }

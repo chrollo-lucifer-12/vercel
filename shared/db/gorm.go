@@ -50,6 +50,14 @@ func (d *DB) MigrateDB() error {
 	return nil
 }
 
+func (d *DB) GetAllDeployments(ctx context.Context, projectID uuid.UUID) ([]Deployment, error) {
+	return gorm.G[Deployment](d.db).Where("project_id = ?", projectID).Find(ctx)
+}
+
+func (d *DB) GetAllProjects(ctx context.Context, userID uuid.UUID) ([]Project, error) {
+	return gorm.G[Project](d.db).Where("user_id = ?", userID).Find(ctx)
+}
+
 func (d *DB) CreateUser(ctx context.Context, u *User) error {
 	err := gorm.G[User](d.db).Create(ctx, u)
 	return err
@@ -157,7 +165,12 @@ func (d *DB) GetCache(ctx context.Context, key string) (datatypes.JSON, error) {
 }
 
 func (d *DB) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
-	deployment, err := gorm.G[Deployment](d.db).
+	deployment, err := gorm.G[Deployment](d.db).Preload("LogEvents", func(pb gorm.PreloadBuilder) error {
+		pb.Order("sequence ASC")
+		pb.Limit(500)
+		pb.Select("id", "log", "sequence")
+		return nil
+	}).
 		Where("id = ?", id).
 		First(ctx)
 

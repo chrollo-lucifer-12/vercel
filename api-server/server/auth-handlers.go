@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/utils"
 )
@@ -132,6 +134,39 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ServerClient) logoutUserHandler(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
+	parts := strings.Split(path, "/")
+
+	if len(parts) < 3 {
+		http.Error(w, "invalid path", http.StatusBadRequest)
+		return
+	}
+
+	id := parts[2]
+	sessionID := utils.StringToUUID(id)
+
+	claims := r.Context().Value(authKey{}).(*auth.UserClaims)
+
+	ctx := r.Context()
+
+	session, err := h.auth.GetSession(ctx, sessionID)
+	if err != nil {
+		http.Error(w, "error getting session: "+err.Error(), http.StatusNotFound)
+		return
+	}
+
+	if session.UserEmail != claims.Email {
+		http.Error(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	err = h.auth.DeleteSession(ctx, sessionID)
+	if err != nil {
+		http.Error(w, "failed to delete session", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 
 }
 

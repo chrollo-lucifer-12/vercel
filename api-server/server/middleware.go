@@ -9,8 +9,6 @@ import (
 	"github.com/chrollo-lucifer-12/api-server/auth"
 )
 
-type authKey struct{}
-
 func verifyClaimsFromHeader(r *http.Request, maker *auth.JWTMaker) (*auth.UserClaims, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
