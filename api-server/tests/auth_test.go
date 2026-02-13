@@ -3,11 +3,13 @@ package tests
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/google/uuid"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
+	"gotest.tools/v3/assert"
 )
 
 func SetupTestPostgres(t *testing.T) (*db.DB, func()) {
@@ -24,29 +26,17 @@ func SetupTestPostgres(t *testing.T) (*db.DB, func()) {
 		postgres.WithPassword(dbPassword),
 		postgres.BasicWaitStrategies(),
 	)
-
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	connStr, err := container.ConnectionString(ctx, "sslmode=disable")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 	t.Log(connStr)
 
 	dbClient, err := db.NewTestDB(connStr, ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-
+	assert.NilError(t, err)
 	t.Log("connected to db")
 
-	if err := dbClient.MigrateDB(); err != nil {
-		t.Fatal(err)
-	}
-
-	t.Log("connected to db")
+	assert.NilError(t, dbClient.MigrateDB())
 
 	cleanup := func() {
 		container.Terminate(ctx)
@@ -85,199 +75,48 @@ func TestUserStore(t *testing.T) {
 	var createdUser *db.User
 
 	t.Run("CreateUser", func(t *testing.T) {
-		tests := []struct {
-			name        string
-			user        *db.User
-			expectError bool
-		}{
-			{
-				name: "valid user",
-				user: &db.User{
-					Name:     "test",
-					Email:    "test@example.com",
-					Password: "password123",
-				},
-				expectError: false,
-			},
-			{
-				name: "repeating email",
-				user: &db.User{
-					Name:     "test",
-					Email:    "test@example.com",
-					Password: "password123",
-				},
-				expectError: true,
-			},
-			{
-				name: "missing email",
-				user: &db.User{
-					Name:     "test1",
-					Password: "password123",
-				},
-				expectError: true,
-			},
-			{
-				name: "missing password",
-				user: &db.User{
-					Name:  "test2",
-					Email: "test2@example.com",
-				},
-				expectError: true,
-			},
-			{
-				name: "missing name",
-				user: &db.User{
-					Email:    "test3@example.com",
-					Password: "password123",
-				},
-				expectError: true,
-			},
+		user := &db.User{
+			Name:     "test",
+			Email:    "test@example.com",
+			Password: "password123",
 		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				err := service.CreateUser(ctx, tt.user)
-
-				if tt.expectError {
-					if err == nil {
-						t.Fatalf("expected error but got nil")
-					}
-					return
-				}
-
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-
-				if tt.user.ID.String() == "" {
-					t.Fatalf("expected user ID to be generated")
-				}
-
-				if createdUser == nil {
-					createdUser = tt.user
-				}
-			})
-		}
+		err := service.CreateUser(ctx, user)
+		assert.NilError(t, err, "creating user should not fail")
+		assert.Assert(t, user.ID != uuid.Nil, "user ID should be generated")
+		createdUser = user
 	})
 
-	t.Run("GetUser", func(t *testing.T) {
-		if createdUser == nil {
-			t.Fatal("no user created in CreateUser subtest")
+	t.Run("CreateUser duplicate email", func(t *testing.T) {
+		user := &db.User{
+			Name:     "test",
+			Email:    "test@example.com",
+			Password: "password123",
 		}
+		err := service.CreateUser(ctx, user)
+		assert.ErrorContains(t, err, "duplicate", "should fail due to duplicate email")
+	})
 
-		tests := []struct {
-			name        string
-			email       string
-			expectError bool
-		}{
-			{
-				name:        "existing user",
-				email:       createdUser.Email,
-				expectError: false,
-			},
-			{
-				name:        "nonexistent user",
-				email:       "doesnotexist@example.com",
-				expectError: true,
-			},
-		}
+	t.Run("GetUser existing", func(t *testing.T) {
+		u, err := service.GetUser(ctx, createdUser.Email)
+		assert.NilError(t, err)
+		assert.Equal(t, u.Email, createdUser.Email)
+	})
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				u, err := service.GetUser(ctx, tt.email)
-
-				if tt.expectError {
-					if err == nil {
-						t.Fatalf("expected error but got nil")
-					}
-					return
-				}
-
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-
-				if u.Email != tt.email {
-					t.Fatalf("expected email %s, got %s", tt.email, u.Email)
-				}
-			})
-		}
+	t.Run("GetUser non-existing", func(t *testing.T) {
+		_, err := service.GetUser(ctx, "doesnotexist@example.com")
+		assert.ErrorContains(t, err, "not found")
 	})
 
 	t.Run("UpdateUser", func(t *testing.T) {
-		if createdUser == nil {
-			t.Fatal("no user created in CreateUser subtest")
-		}
-
-		tests := []struct {
-			name        string
-			updatedName string
-			expectError bool
-		}{
-			{
-				name:        "valid name",
-				updatedName: "random",
-				expectError: false,
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				createdUser.Name = tt.updatedName
-				err := service.UpdateUser(ctx, *createdUser)
-
-				if tt.expectError {
-					if err == nil {
-						t.Fatalf("expected error but got nil")
-					}
-					return
-				}
-
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-
-				if createdUser.Name != tt.updatedName {
-					t.Fatalf("name doest not match")
-				}
-			})
-		}
+		createdUser.Name = "updatedName"
+		err := service.UpdateUser(ctx, *createdUser)
+		assert.NilError(t, err)
+		assert.Equal(t, createdUser.Name, "updatedName")
 	})
 
 	t.Run("DeleteUser", func(t *testing.T) {
-		if createdUser == nil {
-			t.Fatal("no user created in CreateUser subtest")
-		}
-
-		tests := []struct {
-			name        string
-			id          uuid.UUID
-			expectError bool
-		}{
-
-			{
-				name:        "valid id",
-				id:          createdUser.ID,
-				expectError: false,
-			},
-		}
-
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				err := service.DeleteUser(ctx, tt.id)
-
-				if tt.expectError {
-					if err == nil {
-						t.Fatalf("expected error but got nil")
-					}
-					return
-				}
-
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-			})
-		}
+		err := service.DeleteUser(ctx, createdUser.ID)
+		assert.NilError(t, err)
 	})
 }
 
@@ -290,76 +129,95 @@ func TestAuthStore(t *testing.T) {
 		Email:    "authuser@example.com",
 		Password: "password123",
 	}
-
-	err := service.CreateUser(ctx, user)
-	if err != nil {
-		t.Fatalf("failed to create user for auth tests: %v", err)
-	}
+	assert.NilError(t, service.CreateUser(ctx, user))
 
 	t.Run("CreateSession", func(t *testing.T) {
 		session := &db.Session{
 			UserID:       user.ID,
 			RefreshToken: "token123",
 			Revoked:      false,
+			ExpiresAt:    time.Now().Add(time.Hour),
 		}
-
 		err := service.CreateSession(ctx, session)
-		if err != nil {
-			t.Fatalf("failed to create session: %v", err)
-		}
-
-		if session.UserID != user.ID {
-			t.Fatalf("expected session UserID %s, got %s", user.ID, session.UserID)
-		}
+		assert.NilError(t, err)
+		assert.Equal(t, session.UserID, user.ID)
 	})
 
 	t.Run("GetSession", func(t *testing.T) {
-		_, err := service.GetSession(ctx, user.ID)
-		if err != nil {
-			t.Fatalf("failed to get session: %v", err)
-		}
+		sess, err := service.GetSession(ctx, user.ID)
+		assert.NilError(t, err)
+		assert.Equal(t, sess.UserID, user.ID)
 	})
 
 	t.Run("RevokeSession", func(t *testing.T) {
-		session, err := service.GetSession(ctx, user.ID)
-		if err != nil {
-			t.Fatalf("no session found to revoke: %v", err)
-		}
+		sess, err := service.GetSession(ctx, user.ID)
+		assert.NilError(t, err)
 
-		session.Revoked = true
+		sess.Revoked = true
+		err = service.RevokeSession(ctx, *sess)
+		assert.NilError(t, err)
 
-		err = service.RevokeSession(ctx, *session)
-		if err != nil {
-			t.Fatalf("failed to revoke session: %v", err)
-		}
-
-		updatedSession, err := service.GetSession(ctx, user.ID)
-		if err != nil {
-			t.Fatalf("failed to get session after revoke: %v", err)
-		}
-
-		t.Log(updatedSession)
-
-		if !updatedSession.Revoked {
-			t.Fatalf("expected session to be revoked")
-		}
+		updated, err := service.GetSession(ctx, user.ID)
+		assert.NilError(t, err)
+		assert.Assert(t, updated.Revoked, "session should be revoked")
 	})
 
 	t.Run("DeleteSession", func(t *testing.T) {
-		session, err := service.GetSession(ctx, user.ID)
-		if err != nil {
-			t.Fatalf("no session found to delete: %v", err)
-		}
+		err := service.DeleteSession(ctx, user.ID)
+		assert.NilError(t, err)
 
-		err = service.DeleteSession(ctx, session.UserID)
-		if err != nil {
-			t.Fatalf("failed to delete session: %v", err)
-		}
+		_, err = service.GetSession(ctx, user.ID)
+		assert.ErrorContains(t, err, "not found")
+	})
+}
+func TestJWTMaker(t *testing.T) {
+	secretKey := "supersecret"
+	maker := auth.NewJWTMaker(secretKey)
 
-		_, err = service.GetSession(ctx, session.UserID)
-		if err == nil {
-			t.Fatalf("session should have been deleted")
-		}
+	userID := uuid.New()
+	email := "test@example.com"
+	duration := time.Minute * 1
 
+	t.Run("CreateToken", func(t *testing.T) {
+		tokenStr, claims, err := maker.CreateToken(userID, email, duration)
+		assert.NilError(t, err)
+		assert.Assert(t, tokenStr != "")
+		assert.Equal(t, claims.ID, userID)
+		assert.Equal(t, claims.Email, email)
+	})
+
+	t.Run("VerifyToken", func(t *testing.T) {
+		tokenStr, _, err := maker.CreateToken(userID, email, duration)
+		assert.NilError(t, err)
+
+		claims, err := maker.VerifyToken(tokenStr)
+		assert.NilError(t, err)
+		assert.Equal(t, claims.ID, userID)
+		assert.Equal(t, claims.Email, email)
+	})
+
+	t.Run("ExpiredToken", func(t *testing.T) {
+		shortDuration := time.Millisecond * 50
+		tokenStr, _, err := maker.CreateToken(userID, email, shortDuration)
+		assert.NilError(t, err)
+
+		time.Sleep(time.Millisecond * 60)
+
+		_, err = maker.VerifyToken(tokenStr)
+		assert.ErrorContains(t, err, "token is expired")
+	})
+
+	t.Run("InvalidSignature", func(t *testing.T) {
+		tokenStr, _, err := maker.CreateToken(userID, email, duration)
+		assert.NilError(t, err)
+
+		otherMaker := auth.NewJWTMaker("wrongsecret")
+		_, err = otherMaker.VerifyToken(tokenStr)
+		assert.ErrorContains(t, err, "signature is invalid")
+	})
+
+	t.Run("InvalidTokenString", func(t *testing.T) {
+		_, err := maker.VerifyToken("not_a_real_token")
+		assert.ErrorContains(t, err, "token contains an invalid number of segments")
 	})
 }

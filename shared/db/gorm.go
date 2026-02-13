@@ -51,7 +51,7 @@ func (d *DB) Raw() *gorm.DB {
 }
 
 func (d *DB) MigrateDB() error {
-	err := d.db.Debug().AutoMigrate(&User{}, &Session{}, &Project{}, &Deployment{}, &LogEvent{}, &Cache{}, &WebsiteAnalytics{})
+	err := d.db.AutoMigrate(&User{}, &Session{}, &Project{}, &Deployment{}, &LogEvent{}, &Cache{}, &WebsiteAnalytics{})
 	if err != nil {
 		return err
 	}
@@ -104,16 +104,16 @@ func (d *DB) CreateSession(ctx context.Context, s *Session) error {
 }
 
 func (d *DB) GetSession(ctx context.Context, id uuid.UUID) (*Session, error) {
-	s, err := first[Session](ctx, d.db, "id = ?", id)
+	s, err := first[Session](ctx, d.db, "user_id = ?", id)
 	return &s, err
 }
 
 func (d *DB) RevokeSession(ctx context.Context, s Session) error {
-	return update[Session](ctx, d.db, "id = ?", s, s.ID)
+	return update[Session](ctx, d.db, "user_id = ?", s, s.UserID)
 }
 
 func (d *DB) DeleteSession(ctx context.Context, id uuid.UUID) error {
-	return deleteBy[Session](ctx, d.db, "id = ?", id)
+	return deleteBy[Session](ctx, d.db, "user_id = ?", id)
 }
 
 func (d *DB) CreateProject(ctx context.Context, p *Project) error {

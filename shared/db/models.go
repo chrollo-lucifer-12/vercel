@@ -31,7 +31,8 @@ type User struct {
 }
 
 type Session struct {
-	ID           uuid.UUID `gorm:"primaryKey"`
+	UserID       uuid.UUID `gorm:"type:uuid;primaryKey"`
+	User         *User     `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
 	UserEmail    string    `gorm:"not null"`
 	RefreshToken string    `gorm:"not null"`
 	Revoked      bool

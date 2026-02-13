@@ -48,10 +48,10 @@ func (j *JWTMaker) CreateToken(id uuid.UUID, email string, duration time.Duratio
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenStr, err := token.SignedString(j.secretKey)
+	tokenStr, err := token.SignedString([]byte(j.secretKey))
 
 	if err != nil {
-		return "", nil, fmt.Errorf("error signing tokne: %w", err)
+		return "", nil, fmt.Errorf("error signing token: %w", err)
 	}
 
 	return tokenStr, claims, nil
@@ -64,7 +64,7 @@ func (j *JWTMaker) VerifyToken(tokenStr string) (*UserClaims, error) {
 			return nil, fmt.Errorf("Invalid token signing method")
 		}
 
-		return j.secretKey, nil
+		return []byte(j.secretKey), nil
 	})
 
 	if err != nil {
