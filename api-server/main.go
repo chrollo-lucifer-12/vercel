@@ -26,10 +26,21 @@ func main() {
 		panic(err)
 	}
 
-	c := cache.NewCacheStore(db)
+	cacheStore := cache.NewCacheStore(db)
 
 	githubToken := env.GithubToken.GetValue()
-	w := workflow.NewWorkflowClient(ctx, githubToken, c)
+	factory := workflow.NewDefaultGithubClientFactory()
+	githubClient := factory.NewClient(ctx, githubToken)
+
+	validator := workflow.NewDefaultConfigValidator()
+	builder := workflow.NewDefaultEventBuilder()
+
+	w := workflow.NewWorkflowClient(
+		githubClient,
+		cacheStore,
+		validator,
+		builder,
+	)
 
 	h, err := server.NewServerClient(w, db)
 	if err != nil {

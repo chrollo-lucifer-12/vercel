@@ -45,6 +45,13 @@ type ServerClient struct {
 	server  *http.Server
 }
 
+type route struct {
+	path      string
+	method    string
+	handler   http.HandlerFunc
+	protected bool
+}
+
 type UserRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`

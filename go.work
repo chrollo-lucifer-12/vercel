@@ -3,7 +3,7 @@ go 1.24.3
 use (
 	./api-server
 	./build-server
+	./migrate
 	./s3-reverse-proxy
 	./shared
-	./migrate
 )
