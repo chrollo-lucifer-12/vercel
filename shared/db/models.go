@@ -22,6 +22,22 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
+type User struct {
+	Base
+	Name     string    `gorm:"not null;check:name <> ''"`
+	Email    string    `gorm:"unique;not null;check:email <> ''"`
+	Password string    `gorm:"not null;check:password <> ''"`
+	Projects []Project `gorm:"foreignKey:UserID"`
+}
+
+type Session struct {
+	ID           uuid.UUID `gorm:"primaryKey"`
+	UserEmail    string    `gorm:"not null"`
+	RefreshToken string    `gorm:"not null"`
+	Revoked      bool
+	ExpiresAt    time.Time
+}
+
 type Project struct {
 	Base
 	Name         string
@@ -64,20 +80,4 @@ type Cache struct {
 	Base
 	Key   string         `gorm:"unique;index"`
 	Value datatypes.JSON `gorm:"type:jsonb"`
-}
-
-type User struct {
-	Base
-	Name     string    `gorm:"not null"`
-	Email    string    `gorm:"unique;not null"`
-	Password string    `gorm:"not null"`
-	Projects []Project `gorm:"foreignKey:UserID"`
-}
-
-type Session struct {
-	ID           uuid.UUID `gorm:"primaryKey"`
-	UserEmail    string    `gorm:"not null"`
-	RefreshToken string    `gorm:"not null"`
-	Revoked      bool
-	ExpiresAt    time.Time
 }

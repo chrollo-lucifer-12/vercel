@@ -8,7 +8,6 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
-	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
@@ -33,21 +32,18 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 	return &DB{db: db}, nil
 }
 
-func NewTestDB(ctx context.Context) (*DB, error) {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+func NewTestDB(dsn string, ctx context.Context) (*DB, error) {
+	if dsn == "" {
+		return nil, fmt.Errorf("No dsn")
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	database := &DB{db: db}
-
-	if err := database.MigrateDB(); err != nil {
-		return nil, err
-	}
-
-	return database, nil
+	return &DB{db: db}, nil
 }
 
 func (d *DB) Raw() *gorm.DB {
@@ -55,15 +51,12 @@ func (d *DB) Raw() *gorm.DB {
 }
 
 func (d *DB) MigrateDB() error {
-	err := d.db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &Cache{}, &User{})
+	err := d.db.Debug().AutoMigrate(&User{}, &Session{}, &Project{}, &Deployment{}, &LogEvent{}, &Cache{}, &WebsiteAnalytics{})
 	if err != nil {
 		return err
 	}
 
-	err = d.db.Exec("ALTER TABLE caches SET UNLOGGED").Error
-	if err != nil {
-		return err
-	}
+	_ = d.db.Exec("ALTER TABLE caches SET UNLOGGED").Error
 
 	return nil
 }
