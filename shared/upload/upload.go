@@ -13,6 +13,33 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+type MockStorage struct {
+	UploadFileFn func(bucketID, path string, reader io.Reader, fileOptions ...storage_go.FileOptions) (storage_go.FileUploadResponse, error)
+	ListFilesFn  func(bucketID, path string, opts storage_go.FileSearchOptions) ([]storage_go.FileObject, error)
+	RemoveFileFn func(bucketID string, paths []string) ([]storage_go.FileUploadResponse, error)
+}
+
+func (m *MockStorage) UploadFile(bucketID, path string, reader io.Reader, fileOptions ...storage_go.FileOptions) (storage_go.FileUploadResponse, error) {
+	if m.UploadFileFn != nil {
+		return m.UploadFileFn(bucketID, path, reader, fileOptions...)
+	}
+	return storage_go.FileUploadResponse{}, nil
+}
+
+func (m *MockStorage) ListFiles(bucketID, path string, opts storage_go.FileSearchOptions) ([]storage_go.FileObject, error) {
+	if m.ListFilesFn != nil {
+		return m.ListFilesFn(bucketID, path, opts)
+	}
+	return nil, nil
+}
+
+func (m *MockStorage) RemoveFile(bucketID string, paths []string) ([]storage_go.FileUploadResponse, error) {
+	if m.RemoveFileFn != nil {
+		return m.RemoveFileFn(bucketID, paths)
+	}
+	return nil, nil
+}
+
 type StorageInterface interface {
 	UploadFile(bucketID, path string, reader io.Reader, fileOptions ...storage_go.FileOptions) (storage_go.FileUploadResponse, error)
 	ListFiles(bucketID, path string, opts storage_go.FileSearchOptions) ([]storage_go.FileObject, error)

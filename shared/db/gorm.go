@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"gorm.io/gorm/logger"
@@ -30,6 +31,23 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 	}
 
 	return &DB{db: db}, nil
+}
+
+func NewTestDB(ctx context.Context) (*DB, error) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	database := &DB{db: db}
+
+	if err := database.MigrateDB(); err != nil {
+		return nil, err
+	}
+
+	return database, nil
 }
 
 func (d *DB) Raw() *gorm.DB {

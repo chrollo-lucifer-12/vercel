@@ -36,6 +36,19 @@ type GithubActionsClient interface {
 	) (*github.Response, error)
 }
 
+type MockGithubActionsClient struct {
+	CreateWorkflowDispatchEventByFileNameFn func(
+		ctx context.Context,
+		owner string,
+		repo string,
+		workflowFileName string,
+		event github.CreateWorkflowDispatchEventRequest,
+	) (*github.Response, error)
+
+	Called    bool
+	LastEvent github.CreateWorkflowDispatchEventRequest
+}
+
 type CacheDeleter interface {
 	Delete(ctx context.Context, key string) error
 }
@@ -179,4 +192,49 @@ func (f *DefaultGithubClientFactory) NewClient(ctx context.Context, token string
 	})
 	tc := oauth2.NewClient(ctx, ts)
 	return NewGithubActionsAdapter(github.NewClient(tc))
+}
+
+type MockCacheDeleter struct {
+	DeleteFn func(ctx context.Context, key string) error
+
+	DeletedKey string
+	Called     bool
+}
+
+func (m *MockCacheDeleter) Delete(ctx context.Context, key string) error {
+	m.Called = true
+	m.DeletedKey = key
+
+	if m.DeleteFn != nil {
+		return m.DeleteFn(ctx, key)
+	}
+
+	return nil
+}
+
+type MockValidator struct {
+	ValidateFn func(cfg TriggerWorkflowConfig) error
+}
+
+func (m *MockValidator) Validate(cfg TriggerWorkflowConfig) error {
+	if m.ValidateFn != nil {
+		return m.ValidateFn(cfg)
+	}
+	return nil
+}
+
+type MockEventBuilder struct {
+	BuildFn func(cfg TriggerWorkflowConfig) github.CreateWorkflowDispatchEventRequest
+
+	Called bool
+}
+
+func (m *MockEventBuilder) Build(cfg TriggerWorkflowConfig) github.CreateWorkflowDispatchEventRequest {
+	m.Called = true
+
+	if m.BuildFn != nil {
+		return m.BuildFn(cfg)
+	}
+
+	return github.CreateWorkflowDispatchEventRequest{}
 }
