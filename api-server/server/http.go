@@ -55,25 +55,28 @@ func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient
 
 func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
 
-	protectedRoutes := map[string]http.HandlerFunc{
-		"/api/v1/deploy/create":    s.deployHandler,
-		"/api/v1/project/create":   s.createProjectHandler,
-		"/api/v1/projects":         s.getAllProjectsHandler,
-		"/api/v1/project":          s.getProjectHandler,
-		"/api/v1/project/delete":   s.deleteProjectHandler,
-		"/api/v1/auth/logout":      s.logoutUserHandler,
-		"/api/v1/deployments":      s.getAllDeploymentsHandler,
-		"/api/v1/deplyoment":       s.getDeploymentHandler,
-		"api/v1/project/analytics": s.getProjectAnalytics,
+	protectedRoutes := map[string]struct {
+		http.HandlerFunc
+		method string
+	}{
+		"/api/v1/deploy/create":    {s.deployHandler, http.MethodPost},
+		"/api/v1/project/create":   {s.createProjectHandler, http.MethodPost},
+		"/api/v1/projects":         {s.getAllProjectsHandler, http.MethodGet},
+		"/api/v1/project":          {s.getProjectHandler, http.MethodGet},
+		"/api/v1/project/delete":   {s.deleteProjectHandler, http.MethodDelete},
+		"/api/v1/auth/logout":      {s.logoutUserHandler, http.MethodPost},
+		"/api/v1/deployments":      {s.getAllDeploymentsHandler, http.MethodGet},
+		"/api/v1/deplyoment":       {s.getDeploymentHandler, http.MethodGet},
+		"api/v1/project/analytics": {s.getProjectAnalytics, http.MethodGet},
 	}
 
 	for path, handler := range protectedRoutes {
 		mux.Handle(path, Chain(handler, s.authMiddleware))
 	}
 
-	mux.HandleFunc("/api/v1/auth/register", s.registerUserHandler)
-	mux.HandleFunc("/api/v1/auth/login", s.loginUserHandler)
-	mux.HandleFunc("/api/v1/auth/refresh", s.refreshAccessTokenHandler)
+	mux.Handle("/api/v1/auth/register", Chain(http.HandlerFunc(s.registerUserHandler), s.methodMiddleware(http.MethodPost)))
+	mux.Handle("/api/v1/auth/login", Chain(http.HandlerFunc(s.loginUserHandler), s.methodMiddleware(http.MethodPost)))
+	mux.Handle("/api/v1/auth/refresh", Chain(http.HandlerFunc(s.refreshAccessTokenHandler), s.methodMiddleware(http.MethodPost)))
 
 }
 
