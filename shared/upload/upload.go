@@ -3,6 +3,7 @@ package upload
 import (
 	"bufio"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -12,43 +13,59 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type UploadClient struct {
-	client *supabase.Client
+type StorageInterface interface {
+	UploadFile(bucketID, path string, reader io.Reader, fileOptions ...storage_go.FileOptions) (storage_go.FileUploadResponse, error)
+	ListFiles(bucketID, path string, opts storage_go.FileSearchOptions) ([]storage_go.FileObject, error)
+	RemoveFile(bucketID string, paths []string) ([]storage_go.FileUploadResponse, error)
 }
 
-func NewUploadClient(apiUrl, apiKey string) (*UploadClient, error) {
-	client, err := supabase.NewClient(apiUrl, apiKey, nil)
+type UploadClient struct {
+	storage StorageInterface
+}
+
+func NewUploadClient(apiURL, apiKey string) (*UploadClient, error) {
+	client, err := supabase.NewClient(apiURL, apiKey, nil)
 	if err != nil {
 		return nil, err
 	}
-	return &UploadClient{client: client}, nil
+	return &UploadClient{storage: client.Storage}, nil
 }
-func (u *UploadClient) UploadFile(baseDir, filename, bucketID, slug string) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
 
-	absFile, err := filepath.Abs(filename)
-	if err != nil {
-		return err
-	}
+func NewUploadClientWithStorage(storage StorageInterface) *UploadClient {
+	return &UploadClient{storage: storage}
+}
 
-	rel, err := filepath.Rel(baseDir, absFile)
+func (u *UploadClient) UploadBuild(ctx context.Context, bucketID, slug string) error {
+	buildDir, err := u.getBuildDirectory()
 	if err != nil {
 		return err
 	}
 
-	objectKey := filepath.ToSlash(rel)
-	reader := bufio.NewReaderSize(file, 1024*1024)
+	files, err := collectFiles(buildDir)
+	if err != nil {
+		return err
+	}
 
-	_, err = u.client.Storage.UploadFile(bucketID, slug+"/"+objectKey, reader)
+	if err := u.uploadFilesConcurrently(ctx, buildDir, files, bucketID, slug); err != nil {
+		_ = u.DeleteDir(slug, bucketID)
+		return err
+	}
+
+	return nil
+}
+
+func (u *UploadClient) UploadFile(baseDir, filePath, bucketID, slug string) error {
+	reader, objectKey, err := prepareFileUpload(baseDir, filePath)
+	if err != nil {
+		return err
+	}
+
+	_, err = u.storage.UploadFile(bucketID, filepath.ToSlash(filepath.Join(slug, objectKey)), reader)
 	return err
 }
 
-func (u *UploadClient) DeleteDir(dir string, bucketId string) error {
-	files, err := u.client.Storage.ListFiles(bucketId, dir+"/", storage_go.FileSearchOptions{
+func (u *UploadClient) DeleteDir(dir, bucketID string) error {
+	files, err := u.storage.ListFiles(bucketID, dir+"/", storage_go.FileSearchOptions{
 		Limit: 1000,
 	})
 	if err != nil {
@@ -59,38 +76,43 @@ func (u *UploadClient) DeleteDir(dir string, bucketId string) error {
 		return nil
 	}
 
-	paths := make([]string, len(files))
-	for i, f := range files {
-		paths[i] = f.Name
+	paths := make([]string, 0, len(files))
+	for _, f := range files {
+		paths = append(paths, f.Name)
 	}
 
-	_, err = u.client.Storage.RemoveFile(bucketId, paths)
-
+	_, err = u.storage.RemoveFile(bucketID, paths)
 	return err
 }
 
-func (u *UploadClient) UploadBuild(ctx context.Context, bucketID, slug string) error {
+func (u *UploadClient) getBuildDirectory() (string, error) {
 	buildPath := utils.GetPath([]string{"home", "app", "output", "dist"})
+	return filepath.Abs(buildPath)
+}
 
-	absBuildDir, err := filepath.Abs(buildPath)
-	if err != nil {
-		return err
-	}
+func collectFiles(root string) ([]string, error) {
+	var files []string
 
-	files := []string{}
-	err = filepath.WalkDir(absBuildDir, func(path string, d os.DirEntry, err error) error {
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if d.IsDir() {
-			return nil
+		if !d.IsDir() {
+			files = append(files, path)
 		}
-		files = append(files, path)
 		return nil
 	})
-	if err != nil {
-		return err
-	}
+
+	return files, err
+}
+
+func (u *UploadClient) uploadFilesConcurrently(
+	ctx context.Context,
+	baseDir string,
+	files []string,
+	bucketID string,
+	slug string,
+) error {
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(5)
@@ -99,18 +121,32 @@ func (u *UploadClient) UploadBuild(ctx context.Context, bucketID, slug string) e
 		fp := fp
 
 		g.Go(func() error {
-			if err := u.UploadFile(absBuildDir, fp, bucketID, slug); err != nil {
-				return err
-			}
-			return nil
+			return u.UploadFile(baseDir, fp, bucketID, slug)
 		})
 	}
 
-	if err := g.Wait(); err != nil {
+	return g.Wait()
+}
 
-		u.DeleteDir(slug, bucketID)
-		return err
+func prepareFileUpload(baseDir, filePath string) (*bufio.Reader, string, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, "", err
 	}
 
-	return nil
+	absFile, err := filepath.Abs(filePath)
+	if err != nil {
+		file.Close()
+		return nil, "", err
+	}
+
+	rel, err := filepath.Rel(baseDir, absFile)
+	if err != nil {
+		file.Close()
+		return nil, "", err
+	}
+
+	reader := bufio.NewReaderSize(file, 1024*1024)
+
+	return reader, rel, nil
 }

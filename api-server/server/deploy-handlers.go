@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
@@ -100,7 +101,7 @@ func (h *ServerClient) queueDeployment(ctx context.Context, project *db.Project,
 
 	go func() {
 		if err := h.wClient.TriggerWorkflow(ctx, workflow.TriggerWorkflowConfig{Owner: "chrollo-lucifer-12", Repo: "vercel", WorkflowFile: "build.yml", Ref: "main",
-			Inputs: workflow.Input{GitURL: project.GitUrl, ApiURL: apiUrl, ApiKey: apiKey, BucketID: "builds", ProjectSlug: project.SubDomain, DeploymentID: dep.ID.String(), UserEnv: userEnv}}); err != nil {
+			Inputs: workflow.Input{GitURL: project.GitUrl, ApiURL: apiUrl, ApiKey: apiKey, BucketID: "builds", ProjectSlug: project.SubDomain + strconv.Itoa(dep.Sequence), DeploymentID: dep.ID.String(), UserEnv: userEnv}}); err != nil {
 			_ = h.db.Raw().Model(&db.Deployment{}).
 				Where("id = ?", dep.ID).
 				Update("status", "FAILED")

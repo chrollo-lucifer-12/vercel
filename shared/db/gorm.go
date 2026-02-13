@@ -37,7 +37,7 @@ func (d *DB) Raw() *gorm.DB {
 }
 
 func (d *DB) MigrateDB() error {
-	err := d.db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &GitHash{}, &Cache{}, &User{})
+	err := d.db.AutoMigrate(&Project{}, &Deployment{}, &LogEvent{}, &Cache{}, &User{})
 	if err != nil {
 		return err
 	}
@@ -50,96 +50,79 @@ func (d *DB) MigrateDB() error {
 	return nil
 }
 
-func (d *DB) GetAllDeployments(ctx context.Context, projectID uuid.UUID) ([]Deployment, error) {
-	return gorm.G[Deployment](d.db).Where("project_id = ?", projectID).Find(ctx)
+func first[T any](ctx context.Context, db *gorm.DB, query string, args ...any) (T, error) {
+	return gorm.G[T](db).Where(query, args...).First(ctx)
 }
 
-func (d *DB) GetAllProjects(ctx context.Context, userID uuid.UUID) ([]Project, error) {
-	return gorm.G[Project](d.db).Where("user_id = ?", userID).Find(ctx)
+func find[T any](ctx context.Context, db *gorm.DB, query string, args ...any) ([]T, error) {
+	return gorm.G[T](db).Where(query, args...).Find(ctx)
+}
+
+func create[T any](ctx context.Context, db *gorm.DB, val *T) error {
+	return gorm.G[T](db).Create(ctx, val)
+}
+
+func update[T any](ctx context.Context, db *gorm.DB, query string, val T, args ...any) error {
+	_, err := gorm.G[T](db).Where(query, args...).Updates(ctx, val)
+	return err
+}
+
+func deleteBy[T any](ctx context.Context, db *gorm.DB, query string, args ...any) error {
+	_, err := gorm.G[T](db).Where(query, args...).Delete(ctx)
+	return err
 }
 
 func (d *DB) CreateUser(ctx context.Context, u *User) error {
-	err := gorm.G[User](d.db).Create(ctx, u)
-	return err
+	return create(ctx, d.db, u)
 }
 
 func (d *DB) GetUser(ctx context.Context, email string) (User, error) {
-	return gorm.G[User](d.db).Where("email = ?", email).First(ctx)
+	return first[User](ctx, d.db, "email = ?", email)
 }
 
 func (d *DB) UpdateUser(ctx context.Context, u User) error {
-	_, err := gorm.G[User](d.db).Updates(ctx, u)
-
-	return err
+	return update[User](ctx, d.db, "id = ?", u, u.ID)
 }
 
 func (d *DB) DeleteUser(ctx context.Context, id uuid.UUID) error {
-	_, err := gorm.G[User](d.db).Where("id = ?", id).Delete(ctx)
-	return err
+	return deleteBy[User](ctx, d.db, "id = ?", id)
 }
 
 func (d *DB) CreateSession(ctx context.Context, s *Session) error {
-	return gorm.G[Session](d.db).Create(ctx, s)
+	return create(ctx, d.db, s)
 }
 
 func (d *DB) GetSession(ctx context.Context, id uuid.UUID) (*Session, error) {
-	session, err := gorm.G[Session](d.db).Where("id = ?", id).First(ctx)
-	return &session, err
+	s, err := first[Session](ctx, d.db, "id = ?", id)
+	return &s, err
 }
 
 func (d *DB) RevokeSession(ctx context.Context, s Session) error {
-	_, err := gorm.G[Session](d.db).Updates(ctx, s)
-	return err
+	return update[Session](ctx, d.db, "id = ?", s, s.ID)
 }
 
 func (d *DB) DeleteSession(ctx context.Context, id uuid.UUID) error {
-	_, err := gorm.G[Session](d.db).Where("id = ?", id).Delete(ctx)
-	return err
+	return deleteBy[Session](ctx, d.db, "id = ?", id)
 }
 
-func (d *DB) CreateHash(ctx context.Context, gitHash *GitHash) error {
-	return gorm.G[GitHash](d.db).Create(ctx, gitHash)
-}
-
-func (d *DB) UpdateHash(ctx context.Context, project_id uuid.UUID, gitHash GitHash) error {
-	_, err := gorm.G[GitHash](d.db).Where("project_id = ?", project_id).Updates(ctx, gitHash)
-	return err
-}
-
-func (d *DB) CreateProject(ctx context.Context, project *Project) error {
-	return gorm.G[Project](d.db).Create(ctx, project)
+func (d *DB) CreateProject(ctx context.Context, p *Project) error {
+	return create(ctx, d.db, p)
 }
 
 func (d *DB) GetProjectByID(ctx context.Context, id uuid.UUID) (Project, error) {
-
-	p, err := gorm.G[Project](d.db).
-		Where("id = ?", id).
-		First(ctx)
-
-	return p, err
+	return first[Project](ctx, d.db, "id = ?", id)
 }
 
-func (d *DB) UpdateProject(
-	ctx context.Context,
-	id uuid.UUID,
-	p Project,
-) error {
-	_, err := gorm.G[Project](d.db).
-		Where("id = ?", id).
-		Updates(ctx, p)
-	return err
+func (d *DB) GetAllProjects(ctx context.Context, userID uuid.UUID) ([]Project, error) {
+	return find[Project](ctx, d.db, "user_id = ?", userID)
+}
+
+func (d *DB) UpdateProject(ctx context.Context, id uuid.UUID, p Project) error {
+	return update[Project](ctx, d.db, "id = ?", p, id)
 }
 
 func (d *DB) DeleteProject(ctx context.Context, id uuid.UUID) error {
-	_, err := gorm.G[Project](d.db).
-		Where("id = ?", id).
-		Delete(ctx)
-
-	return err
-}
-
-func (d *DB) CreateDeployment(ctx context.Context, deployment *Deployment) error {
-	return gorm.G[Deployment](d.db).Create(ctx, deployment)
+	return deleteBy[Project](ctx, d.db, "id = ?", id)
 }
 
 func (d *DB) CreateCache(ctx context.Context, cache *Cache) error {
@@ -164,84 +147,59 @@ func (d *DB) GetCache(ctx context.Context, key string) (datatypes.JSON, error) {
 	return cache.Value, err
 }
 
-func (d *DB) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
-	deployment, err := gorm.G[Deployment](d.db).Preload("LogEvents", func(pb gorm.PreloadBuilder) error {
-		pb.Order("sequence ASC")
-		pb.Limit(500)
-		pb.Select("id", "log", "sequence")
-		return nil
-	}).
-		Where("id = ?", id).
-		First(ctx)
-
-	return deployment, err
+func (d *DB) CreateDeployment(ctx context.Context, dep *Deployment) error {
+	return create(ctx, d.db, dep)
 }
 
-func (d *DB) UpdateDeployment(
-	ctx context.Context,
-	id uuid.UUID,
-	deployment Deployment,
-) error {
-	_, err := gorm.G[Deployment](d.db).
+func (d *DB) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, error) {
+	return gorm.G[Deployment](d.db).
+		Preload("LogEvents", func(pb gorm.PreloadBuilder) error {
+			pb.Order("sequence ASC")
+			pb.Limit(500)
+			pb.Select("id", "log", "sequence")
+			return nil
+		}).
 		Where("id = ?", id).
-		Updates(ctx, deployment)
+		First(ctx)
+}
 
-	return err
+func (d *DB) GetAllDeployments(ctx context.Context, projectID uuid.UUID) ([]Deployment, error) {
+	return find[Deployment](ctx, d.db, "project_id = ?", projectID)
+}
+
+func (d *DB) UpdateDeployment(ctx context.Context, id uuid.UUID, dep Deployment) error {
+	return update[Deployment](ctx, d.db, "id = ?", dep, id)
 }
 
 func (d *DB) DeleteDeployment(ctx context.Context, id uuid.UUID) error {
-	_, err := gorm.G[Deployment](d.db).
-		Where("id = ?", id).
-		Delete(ctx)
-
-	return err
+	return deleteBy[Deployment](ctx, d.db, "id = ?", id)
 }
 
-func (d *DB) CreateLogEvents(ctx context.Context, logEvents *[]LogEvent) error {
-	return gorm.G[LogEvent](d.db).CreateInBatches(ctx, logEvents, 10)
+func (d *DB) CreateLogEvents(ctx context.Context, logs *[]LogEvent) error {
+	return gorm.G[LogEvent](d.db).CreateInBatches(ctx, logs, 10)
 }
 
 func (d *DB) GetAnalytics(
 	ctx context.Context,
-	subDomain string,
+	subdomain string,
 	from *time.Time,
 	to *time.Time,
 ) ([]WebsiteAnalytics, error) {
 
 	q := gorm.G[WebsiteAnalytics](d.db).
-		Where("subdomain = ?", subDomain)
+		Where("subdomain = ?", subdomain)
 
-	if from != nil && to != nil {
-		q = q.Where("created_at BETWEEN ? AND ?", *from, *to)
-	} else if from != nil {
+	if from != nil {
 		q = q.Where("created_at >= ?", *from)
-	} else if to != nil {
+	}
+
+	if to != nil {
 		q = q.Where("created_at <= ?", *to)
 	}
 
 	return q.Find(ctx)
 }
 
-func (d *DB) UpdateLogEvent(
-	ctx context.Context,
-	id uuid.UUID,
-	logEvent LogEvent,
-) error {
-	_, err := gorm.G[LogEvent](d.db).
-		Where("id = ?", id).
-		Updates(ctx, logEvent)
-
-	return err
-}
-
-func (d *DB) DeleteLogEvent(ctx context.Context, id uuid.UUID) error {
-	_, err := gorm.G[LogEvent](d.db).
-		Where("id = ?", id).
-		Delete(ctx)
-
-	return err
-}
-
-func (d *DB) CreateAnalytcis(ctx context.Context, w *WebsiteAnalytics) error {
-	return gorm.G[WebsiteAnalytics](d.db).Create(ctx, w)
+func (d *DB) CreateAnalytics(ctx context.Context, w *WebsiteAnalytics) error {
+	return create(ctx, d.db, w)
 }

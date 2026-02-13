@@ -37,12 +37,7 @@ type Deployment struct {
 	ProjectID uuid.UUID `gorm:"type:uuid;index"`
 	Status    string
 	LogEvents []LogEvent `gorm:"foreignKey:DeploymentID"`
-}
-
-type GitHash struct {
-	Base
-	ProjectID uuid.UUID `gorm:"type:uuid;index"`
-	Hash      string
+	Sequence  int        `gorm:"autoIncrement"`
 }
 
 type LogEvent struct {

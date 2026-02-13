@@ -50,7 +50,7 @@ func (s *ServerClient) trackRequest(subdomain, path, method string, statusCode i
 		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		if err := s.db.CreateAnalytcis(bgCtx, &request); err != nil {
+		if err := s.db.CreateAnalytics(bgCtx, &request); err != nil {
 			log.Printf("Failed to track request for %s%s: %v", subdomain, path, err)
 		}
 	}()

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"errors"
 
 	"github.com/chrollo-lucifer-12/shared/cache"
 	"github.com/google/go-github/v59/github"
@@ -9,19 +10,28 @@ import (
 )
 
 type WorkflowClient struct {
-	wClient *github.Client
-	cache   *cache.CacheStore
+	github *github.Client
+	cache  CacheDeleter
 }
 
-func NewWorkflowClient(ctx context.Context, githubToken string, cache *cache.CacheStore) *WorkflowClient {
-	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: githubToken},
-	)
+type CacheDeleter interface {
+	Delete(ctx context.Context, key string) error
+}
+
+func NewWorkflowClient(ctx context.Context, githubToken string, cacheStore *cache.CacheStore) *WorkflowClient {
+	return &WorkflowClient{
+		github: newGithubClient(ctx, githubToken),
+		cache:  cacheStore,
+	}
+}
+
+func newGithubClient(ctx context.Context, token string) *github.Client {
+	ts := oauth2.StaticTokenSource(&oauth2.Token{
+		AccessToken: token,
+	})
+
 	tc := oauth2.NewClient(ctx, ts)
-
-	client := github.NewClient(tc)
-
-	return &WorkflowClient{wClient: client, cache: cache}
+	return github.NewClient(tc)
 }
 
 type Input struct {
@@ -42,32 +52,69 @@ type TriggerWorkflowConfig struct {
 	Ref          string
 }
 
-func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, config TriggerWorkflowConfig) error {
+func (w *WorkflowClient) TriggerWorkflow(ctx context.Context, cfg TriggerWorkflowConfig) error {
 
-	owner := config.Owner
-	repo := config.Repo
-	workflowFile := config.WorkflowFile
-
-	inputs := map[string]interface{}{
-		"gitURL":       config.Inputs.GitURL,
-		"apiURL":       config.Inputs.ApiURL,
-		"apiKey":       config.Inputs.ApiKey,
-		"bucketId":     config.Inputs.BucketID,
-		"projectSlug":  config.Inputs.ProjectSlug,
-		"deploymentId": config.Inputs.DeploymentID,
-		"userEnv":      config.Inputs.UserEnv,
-	}
-
-	event := github.CreateWorkflowDispatchEventRequest{
-		Ref:    config.Ref,
-		Inputs: inputs,
-	}
-
-	_, err := w.wClient.Actions.CreateWorkflowDispatchEventByFileName(ctx, owner, repo, workflowFile, event)
-	if err != nil {
+	if err := validateConfig(cfg); err != nil {
 		return err
 	}
-	err = w.cache.Delete(ctx, config.Inputs.ProjectSlug)
+
+	event := buildWorkflowDispatchEvent(cfg)
+
+	if err := w.dispatchWorkflow(ctx, cfg, event); err != nil {
+		return err
+	}
+
+	return w.invalidateCache(ctx, cfg.Inputs.ProjectSlug)
+}
+
+func validateConfig(cfg TriggerWorkflowConfig) error {
+	if cfg.Owner == "" ||
+		cfg.Repo == "" ||
+		cfg.WorkflowFile == "" ||
+		cfg.Ref == "" {
+		return errors.New("invalid workflow config")
+	}
+
+	if cfg.Inputs.ProjectSlug == "" {
+		return errors.New("project slug required")
+	}
+
+	return nil
+}
+
+func buildWorkflowDispatchEvent(cfg TriggerWorkflowConfig) github.CreateWorkflowDispatchEventRequest {
+
+	return github.CreateWorkflowDispatchEventRequest{
+		Ref: cfg.Ref,
+		Inputs: map[string]interface{}{
+			"gitURL":       cfg.Inputs.GitURL,
+			"apiURL":       cfg.Inputs.ApiURL,
+			"apiKey":       cfg.Inputs.ApiKey,
+			"bucketId":     cfg.Inputs.BucketID,
+			"projectSlug":  cfg.Inputs.ProjectSlug,
+			"deploymentId": cfg.Inputs.DeploymentID,
+			"userEnv":      cfg.Inputs.UserEnv,
+		},
+	}
+}
+
+func (w *WorkflowClient) dispatchWorkflow(
+	ctx context.Context,
+	cfg TriggerWorkflowConfig,
+	event github.CreateWorkflowDispatchEventRequest,
+) error {
+
+	_, err := w.github.Actions.CreateWorkflowDispatchEventByFileName(
+		ctx,
+		cfg.Owner,
+		cfg.Repo,
+		cfg.WorkflowFile,
+		event,
+	)
 
 	return err
+}
+
+func (w *WorkflowClient) invalidateCache(ctx context.Context, projectSlug string) error {
+	return w.cache.Delete(ctx, projectSlug)
 }
