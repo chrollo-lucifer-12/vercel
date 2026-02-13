@@ -74,7 +74,7 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 	refreshToken, refreshClaims, err := h.auth.Maker.CreateToken(user.ID, user.Email, 7*24*time.Hour)
 
 	newSession := db.Session{
-		ID:           utils.StringToUUID(refreshClaims.RegisteredClaims.ID),
+		UserID:       utils.StringToUUID(refreshClaims.RegisteredClaims.ID),
 		UserEmail:    user.Email,
 		RefreshToken: refreshToken,
 		Revoked:      false,
@@ -83,7 +83,7 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 	h.auth.CreateSession(ctx, &newSession)
 
 	res := LoginResponse{
-		SessionID:             newSession.ID.String(),
+		SessionID:             newSession.UserID.String(),
 		RefreshToken:          refreshToken,
 		AccessTokenExpiresAt:  accessClaims.RegisteredClaims.ExpiresAt.Time,
 		RefreshTokenExpiresAt: refreshClaims.RegisteredClaims.ExpiresAt.Time,

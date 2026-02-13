@@ -280,3 +280,86 @@ func TestUserStore(t *testing.T) {
 		}
 	})
 }
+
+func TestAuthStore(t *testing.T) {
+	service, ctx, cleanup := setupAuthService(t)
+	defer cleanup()
+
+	user := &db.User{
+		Name:     "authuser",
+		Email:    "authuser@example.com",
+		Password: "password123",
+	}
+
+	err := service.CreateUser(ctx, user)
+	if err != nil {
+		t.Fatalf("failed to create user for auth tests: %v", err)
+	}
+
+	t.Run("CreateSession", func(t *testing.T) {
+		session := &db.Session{
+			UserID:       user.ID,
+			RefreshToken: "token123",
+			Revoked:      false,
+		}
+
+		err := service.CreateSession(ctx, session)
+		if err != nil {
+			t.Fatalf("failed to create session: %v", err)
+		}
+
+		if session.UserID != user.ID {
+			t.Fatalf("expected session UserID %s, got %s", user.ID, session.UserID)
+		}
+	})
+
+	t.Run("GetSession", func(t *testing.T) {
+		_, err := service.GetSession(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("failed to get session: %v", err)
+		}
+	})
+
+	t.Run("RevokeSession", func(t *testing.T) {
+		session, err := service.GetSession(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("no session found to revoke: %v", err)
+		}
+
+		session.Revoked = true
+
+		err = service.RevokeSession(ctx, *session)
+		if err != nil {
+			t.Fatalf("failed to revoke session: %v", err)
+		}
+
+		updatedSession, err := service.GetSession(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("failed to get session after revoke: %v", err)
+		}
+
+		t.Log(updatedSession)
+
+		if !updatedSession.Revoked {
+			t.Fatalf("expected session to be revoked")
+		}
+	})
+
+	t.Run("DeleteSession", func(t *testing.T) {
+		session, err := service.GetSession(ctx, user.ID)
+		if err != nil {
+			t.Fatalf("no session found to delete: %v", err)
+		}
+
+		err = service.DeleteSession(ctx, session.UserID)
+		if err != nil {
+			t.Fatalf("failed to delete session: %v", err)
+		}
+
+		_, err = service.GetSession(ctx, session.UserID)
+		if err == nil {
+			t.Fatalf("session should have been deleted")
+		}
+
+	})
+}
