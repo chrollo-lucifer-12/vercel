@@ -28,6 +28,7 @@ type Project struct {
 	GitUrl       string
 	SubDomain    string
 	CustomDomain string
+	UserID       uuid.UUID
 	Deployments  []Deployment `gorm:"foreignKey:ProjectID"`
 }
 
@@ -72,9 +73,10 @@ type Cache struct {
 
 type User struct {
 	Base
-	Name     string `gorm:"not null"`
-	Email    string `gorm:"unique;not null"`
-	Password string `gorm:"not null"`
+	Name     string    `gorm:"not null"`
+	Email    string    `gorm:"unique;not null"`
+	Password string    `gorm:"not null"`
+	Projects []Project `gorm:"foreignKey:UserID"`
 }
 
 type Session struct {

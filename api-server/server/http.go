@@ -10,6 +10,8 @@ import (
 	"github.com/chrollo-lucifer-12/shared/workflow"
 )
 
+type Middleware func(http.Handler) http.Handler
+
 type ServerClient struct {
 	wClient *workflow.WorkflowClient
 	db      *db.DB
@@ -39,12 +41,37 @@ func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient
 	return &ServerClient{wClient: wClient, db: db, auth: auth}, nil
 }
 
+func Chain(h http.Handler, middlewares ...Middleware) http.Handler {
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		h = middlewares[i](h)
+	}
+	return h
+}
+
 func (h *ServerClient) StartHTTP() {
 
-	http.HandleFunc("/api/v1/deploy", h.deployHandler)
-	http.HandleFunc("/api/v1/project", h.projectHandler)
+	http.Handle(
+		"/api/v1/deploy",
+		Chain(
+			http.HandlerFunc(h.deployHandler),
+			h.authMiddleware,
+		),
+	)
+	http.Handle("/api/v1/project",
+		Chain(
+			http.HandlerFunc(h.projectHandler),
+			h.authMiddleware,
+		),
+	)
+	http.Handle("/api/v1/auth/logout",
+		Chain(
+			http.HandlerFunc(h.logoutUserHandler),
+			h.authMiddleware,
+		),
+	)
 	http.HandleFunc("/api/v1/auth/register", h.registerUserHandler)
 	http.HandleFunc("/api/v1/auth/login", h.loginUserHandler)
+	http.HandleFunc("/api/v1/auth/refresh", h.refreshAccessTokenHandler)
 
 	log.Fatal(http.ListenAndServe(":9000", nil))
 }
