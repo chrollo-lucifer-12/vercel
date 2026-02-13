@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
@@ -101,4 +102,48 @@ func (h *ServerClient) deleteProjectHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ServerClient) getProjectAnalytics(w http.ResponseWriter, r *http.Request) {
+	project, _, err := verifyDeployment(r.URL.Path, r, h.db)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	query := r.URL.Query()
+	fromStr := query.Get("from")
+	toStr := query.Get("to")
+
+	var fromTime *time.Time
+	var toTime *time.Time
+
+	if fromStr != "" {
+		t, err := time.Parse("2006-01-02", fromStr)
+		if err != nil {
+			http.Error(w, "invalid from date", http.StatusBadRequest)
+		}
+		fromTime = &t
+	}
+
+	if toStr != "" {
+		t, err := time.Parse("2006-01-02", toStr)
+		if err != nil {
+			http.Error(w, "invalid from date", http.StatusBadRequest)
+		}
+		toTime = &t
+	}
+
+	ctx := r.Context()
+	analytics, err := h.db.GetAnalytics(ctx, project.SubDomain, fromTime, toTime)
+
+	if err != nil {
+		http.Error(w, "failed to get analytics: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(analytics)
 }

@@ -12,40 +12,6 @@ import (
 	"github.com/chrollo-lucifer-12/shared/utils"
 )
 
-type UserRequest struct {
-	Name     string `json:"name"`
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
-type UserRes struct {
-	Name  string `json:"name"`
-	Email string `json:"email"`
-}
-
-type LoginResponse struct {
-	SessionID             string    `json:"session_id"`
-	RefreshToken          string    `json:"refresh_token"`
-	AccessTokenExpiresAt  time.Time `json:"access_token_expires_at"`
-	RefreshTokenExpiresAt time.Time `json:"refresh_token_expires_at"`
-	AccessToken           string    `json:"access_token"`
-	User                  UserRes
-}
-
-type RenewAccessTokenRequest struct {
-	RefreshToken string `json:"refresh_token"`
-}
-
-type RenewAccessTokenRes struct {
-	AccessToken          string    `json:"access_token"`
-	AccessTokenExpiresAt time.Time `json:"access_token_expires_at"`
-}
-
 func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	var u UserRequest
 	if err := json.NewDecoder(r.Body).Decode(&u); err != nil {
@@ -172,7 +138,7 @@ func (h *ServerClient) logoutUserHandler(w http.ResponseWriter, r *http.Request)
 
 func (h *ServerClient) refreshAccessTokenHandler(w http.ResponseWriter, r *http.Request) {
 	var req RenewAccessTokenRequest
-	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, http.ErrBodyNotAllowed.Error(), http.StatusBadRequest)
 		return
 	}

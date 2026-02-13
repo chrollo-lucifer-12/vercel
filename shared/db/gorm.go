@@ -201,54 +201,25 @@ func (d *DB) CreateLogEvents(ctx context.Context, logEvents *[]LogEvent) error {
 	return gorm.G[LogEvent](d.db).CreateInBatches(ctx, logEvents, 10)
 }
 
-func (d *DB) GetLogEventByID(ctx context.Context, id uuid.UUID) ([]LogEvent, error) {
-	logEvent, err := gorm.G[LogEvent](d.db).
-		Where("deployment_id = ?", id).
-		Find(ctx)
-
-	return logEvent, err
-}
-
-func (d *DB) GetLogEventsByDeploymentAndTimeRange(
+func (d *DB) GetAnalytics(
 	ctx context.Context,
-	deploymentID uuid.UUID,
-	from time.Time,
-	to time.Time,
-) ([]LogEvent, error) {
+	subDomain string,
+	from *time.Time,
+	to *time.Time,
+) ([]WebsiteAnalytics, error) {
 
-	logEvents, err := gorm.G[LogEvent](d.db).
-		Where(
-			"message!=analytics AND deployment_id = ? AND created_at BETWEEN ? AND ?",
-			deploymentID,
-			from,
-			to,
-		).
-		Find(ctx)
+	q := gorm.G[WebsiteAnalytics](d.db).
+		Where("subdomain = ?", subDomain)
 
-	return logEvents, err
-}
-
-func (d *DB) GetAnalytics(ctx context.Context, deploymentID uuid.UUID, from time.Time, to time.Time, status_code string, path string) ([]LogEvent, error) {
-	q := gorm.G[LogEvent](d.db).
-		Where("deployment_id = ?", deploymentID).
-		Where("created_at BETWEEN ? AND ?", from, to)
-
-	if status_code != "" {
-		q = q.Where(
-			"metadata ->> 'status_code' = ?",
-			status_code,
-		)
+	if from != nil && to != nil {
+		q = q.Where("created_at BETWEEN ? AND ?", *from, *to)
+	} else if from != nil {
+		q = q.Where("created_at >= ?", *from)
+	} else if to != nil {
+		q = q.Where("created_at <= ?", *to)
 	}
 
-	if path != "" {
-		q = q.Where(
-			"metadata ->> 'path' = ?",
-			path,
-		)
-	}
-
-	logs, err := q.Find(ctx)
-	return logs, err
+	return q.Find(ctx)
 }
 
 func (d *DB) UpdateLogEvent(

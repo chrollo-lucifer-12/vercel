@@ -56,14 +56,15 @@ func NewServerClient(wClient *workflow.WorkflowClient, db *db.DB) (*ServerClient
 func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
 
 	protectedRoutes := map[string]http.HandlerFunc{
-		"/api/v1/deploy/create":  s.deployHandler,
-		"/api/v1/project/create": s.createProjectHandler,
-		"/api/v1/projects":       s.getAllProjectsHandler,
-		"/api/v1/project":        s.getProjectHandler,
-		"/api/v1/project/delete": s.deleteProjectHandler,
-		"/api/v1/auth/logout":    s.logoutUserHandler,
-		"/api/v1/deployments":    s.getAllDeploymentsHandler,
-		"/api/v1/deplyoment":     s.getDeploymentHandler,
+		"/api/v1/deploy/create":    s.deployHandler,
+		"/api/v1/project/create":   s.createProjectHandler,
+		"/api/v1/projects":         s.getAllProjectsHandler,
+		"/api/v1/project":          s.getProjectHandler,
+		"/api/v1/project/delete":   s.deleteProjectHandler,
+		"/api/v1/auth/logout":      s.logoutUserHandler,
+		"/api/v1/deployments":      s.getAllDeploymentsHandler,
+		"/api/v1/deplyoment":       s.getDeploymentHandler,
+		"api/v1/project/analytics": s.getProjectAnalytics,
 	}
 
 	for path, handler := range protectedRoutes {
