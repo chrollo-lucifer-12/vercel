@@ -13,11 +13,15 @@ func (key EnvKey) GetValue() string {
 }
 
 const (
-	Env            EnvKey = "ENV"
-	GithubToken    EnvKey = "GITHUB_TOKEN"
-	SupabaseUrl    EnvKey = "SUPABASE_URL"
-	SupabaseSecret EnvKey = "SUPABASE_SECRET"
-	Dsn            EnvKey = "DSN"
+	Env                  EnvKey = "ENV"
+	GithubToken          EnvKey = "GITHUB_TOKEN"
+	SupabaseUrl          EnvKey = "SUPABASE_URL"
+	SupabaseSecret       EnvKey = "SUPABASE_SECRET"
+	Dsn                  EnvKey = "DSN"
+	SupabaseAccessKey    EnvKey = "SUPABASE_ACCESS_KEY"
+	SupabaseAccessSecret EnvKey = "SUPABASE_ACCESS_SECRET"
+	Region               EnvKey = "REGION"
+	SupabaseEndpoint     EnvKey = "SUPABASE_ENDPOINT"
 )
 
 const (
@@ -29,16 +33,6 @@ func isDevelopmentMode() bool {
 	return Env.GetValue() == EnvDevelopment
 }
 
-func Load() error {
-	_, err := os.Lstat(".env")
-	if err != nil {
-		return err
-	}
-
-	if err := godotenv.Load(".env"); err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-	}
-	return nil
+func Load() {
+	_ = godotenv.Load(".env")
 }

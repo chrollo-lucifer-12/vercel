@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -134,4 +135,17 @@ func (s *S3Storage) uploadSingleFile(
 
 	dispatcher.Push(deploymentIDUUID, "Uploaded successfully: "+objectKey)
 	return nil
+}
+
+func (s *S3Storage) GetObject(ctx context.Context, key string) (io.ReadCloser, error) {
+
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return out.Body, nil
 }

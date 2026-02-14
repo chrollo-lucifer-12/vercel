@@ -13,10 +13,7 @@ import (
 
 func main() {
 
-	err := env.Load()
-	if err != nil {
-		panic(err)
-	}
+	env.Load()
 
 	ctx := context.Background()
 
