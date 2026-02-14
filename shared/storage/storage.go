@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"path/filepath"
 
@@ -10,7 +10,9 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/chrollo-lucifer-12/build-server/logs"
 	"github.com/chrollo-lucifer-12/shared/utils"
+	"github.com/google/uuid"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -43,10 +45,11 @@ func NewS3Storage(endpoint, accessKey, secretKey, region, bucket string) (*S3Sto
 	}, nil
 }
 
-func (s *S3Storage) UploadDirectory(ctx context.Context, localDir, slug string) error {
-
+func (s *S3Storage) UploadDirectory(ctx context.Context, localDir, slug string, dispatcher *logs.LogDispatcher, deploymentIDUUID uuid.UUID) error {
+	dispatcher.Push(deploymentIDUUID, "Starting directory upload to S3...")
 	baseDir, err := filepath.Abs(localDir)
 	if err != nil {
+		dispatcher.Push(deploymentIDUUID, "Failed resolving directory path: "+err.Error())
 		return err
 	}
 
@@ -62,10 +65,12 @@ func (s *S3Storage) UploadDirectory(ctx context.Context, localDir, slug string) 
 		return nil
 	})
 	if err != nil {
+		dispatcher.Push(deploymentIDUUID, "Failed walking directory: "+err.Error())
 		return err
 	}
-
-	log.Printf("Found %d files to upload\n", len(files))
+	dispatcher.Push(deploymentIDUUID,
+		fmt.Sprintf("Found %d files to upload...", len(files)),
+	)
 
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(5)
@@ -74,14 +79,32 @@ func (s *S3Storage) UploadDirectory(ctx context.Context, localDir, slug string) 
 		filePath := filePath
 
 		g.Go(func() error {
-			return s.uploadSingleFile(ctx, baseDir, filePath, slug)
+			err := s.uploadSingleFile(ctx, baseDir, filePath, slug, dispatcher, deploymentIDUUID)
+			if err != nil {
+				dispatcher.Push(deploymentIDUUID, "Upload failed: "+filePath+" -> "+err.Error())
+			}
+			return err
 		})
 	}
 
 	return g.Wait()
 }
 
-func (s *S3Storage) uploadSingleFile(ctx context.Context, baseDir, filePath, slug string) error {
+func (s *S3Storage) uploadSingleFile(
+	ctx context.Context,
+	baseDir, filePath, slug string,
+	dispatcher *logs.LogDispatcher,
+	deploymentIDUUID uuid.UUID,
+) error {
+
+	relPath, err := filepath.Rel(baseDir, filePath)
+	if err != nil {
+		return err
+	}
+
+	objectKey := filepath.ToSlash(filepath.Join(slug, relPath))
+
+	dispatcher.Push(deploymentIDUUID, "Uploading: "+objectKey)
 
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -94,16 +117,7 @@ func (s *S3Storage) uploadSingleFile(ctx context.Context, baseDir, filePath, slu
 		return err
 	}
 
-	relPath, err := filepath.Rel(baseDir, filePath)
-	if err != nil {
-		return err
-	}
-
-	objectKey := filepath.ToSlash(filepath.Join(slug, relPath))
 	contentType := utils.DetectContentType(objectKey)
-
-	log.Printf("Uploading %s → %s\n", filePath, objectKey)
-
 	size := stat.Size()
 
 	_, err = s.client.PutObject(ctx, &s3.PutObjectInput{
@@ -114,5 +128,10 @@ func (s *S3Storage) uploadSingleFile(ctx context.Context, baseDir, filePath, slu
 		ContentLength: &size,
 	})
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	dispatcher.Push(deploymentIDUUID, "Uploaded successfully: "+objectKey)
+	return nil
 }

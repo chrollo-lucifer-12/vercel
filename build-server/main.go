@@ -26,7 +26,7 @@ func StreamLogsToDB(
 				done <- struct{}{}
 				return
 			}
-
+			fmt.Println(logEvent)
 			err := d.CreateLogEvents(ctx, &[]db.LogEvent{logEvent})
 			if err != nil {
 				fmt.Println("log insert failed:", err)
@@ -65,15 +65,21 @@ func main() {
 		panic(err)
 	}
 
+	updateDeploymentFunc := func(status string) {
+		d.UpdateDeployment(ctx, deploymentIdUUID, db.Deployment{Status: status})
+	}
+
 	go StreamLogsToDB(ctx, d, dispatcher.Channel(), done)
 
 	if err := utils.WriteEnvFile("/home/app/output", userEnv); err != nil {
+		updateDeploymentFunc("FAILED")
 		fmt.Println("Write env file error:", err)
 		return
 	}
 
 	s, err := storage.NewS3Storage(endPoint, supabaseAccessKey, supabaseSecret, region, bucketID)
 	if err != nil {
+		updateDeploymentFunc("FAILED")
 		fmt.Println(err)
 		return
 	}
@@ -86,6 +92,7 @@ func main() {
 		dispatcher.Push(deploymentIdUUID, "npm install failed: "+err.Error())
 		dispatcher.Close()
 		<-done
+		updateDeploymentFunc("FAILED")
 		return
 	}
 
@@ -94,20 +101,24 @@ func main() {
 		dispatcher.Push(deploymentIdUUID, "npm build failed: "+err.Error())
 		dispatcher.Close()
 		<-done
+		updateDeploymentFunc("FAILED")
 		return
 	}
 
-	if err := s.UploadDirectory(ctx, "/home/app/output/dist", slug); err != nil {
+	if err := s.UploadDirectory(ctx, "/home/app/output/dist", slug, dispatcher, deploymentIdUUID); err != nil {
 		fmt.Println("build upload failed: " + err.Error())
 		dispatcher.Push(deploymentIdUUID, "build upload failed: "+err.Error())
 		dispatcher.Close()
 		<-done
+		updateDeploymentFunc("FAILED")
 		return
 	}
 
 	dispatcher.Push(deploymentIdUUID, "Build successful!")
 	dispatcher.Close()
 	<-done
+
+	updateDeploymentFunc("SUCCESS")
 
 	os.Exit(0)
 }
