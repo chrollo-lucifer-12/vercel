@@ -7,7 +7,7 @@ import (
 
 	"github.com/chrollo-lucifer-12/build-server/logs"
 	"github.com/chrollo-lucifer-12/shared/db"
-	"github.com/chrollo-lucifer-12/shared/upload"
+	"github.com/chrollo-lucifer-12/shared/storage"
 	"github.com/chrollo-lucifer-12/shared/utils"
 	"github.com/google/uuid"
 )
@@ -72,13 +72,11 @@ func main() {
 		return
 	}
 
-	storage, err := upload.NewMinioStorage(endPoint, supabaseAccessKey, region, supabaseSecret, false)
+	s, err := storage.NewS3Storage(endPoint, supabaseAccessKey, supabaseSecret, region, bucketID)
 	if err != nil {
-		fmt.Println("Supabase client error:", err)
+		fmt.Println(err)
 		return
 	}
-
-	client := upload.NewUploadClient(storage)
 
 	dispatcher.Push(deploymentIdUUID, "Running npm install/build...")
 	outputDir := utils.GetPath([]string{"home", "app", "output"})
@@ -99,7 +97,8 @@ func main() {
 		return
 	}
 
-	if err := client.UploadBuild(ctx, bucketID, slug); err != nil {
+	if err := s.UploadDirectory(ctx, "/home/app/output/dist", slug); err != nil {
+		fmt.Println("build upload failed: " + err.Error())
 		dispatcher.Push(deploymentIdUUID, "build upload failed: "+err.Error())
 		dispatcher.Close()
 		<-done

@@ -83,3 +83,25 @@ func StringToUUID(idStr string) uuid.UUID {
 	res, _ := uuid.Parse(idStr)
 	return res
 }
+
+func DetectContentType(path string) string {
+
+	switch {
+	case strings.HasSuffix(path, ".html"):
+		return "text/html"
+	case strings.HasSuffix(path, ".css"):
+		return "text/css"
+	case strings.HasSuffix(path, ".js"):
+		return "application/javascript"
+	case strings.HasSuffix(path, ".json"):
+		return "application/json"
+	case strings.HasSuffix(path, ".svg"):
+		return "image/svg+xml"
+	case strings.HasSuffix(path, ".png"):
+		return "image/png"
+	case strings.HasSuffix(path, ".jpg"), strings.HasSuffix(path, ".jpeg"):
+		return "image/jpeg"
+	default:
+		return "application/octet-stream"
+	}
+}
