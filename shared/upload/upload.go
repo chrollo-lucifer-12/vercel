@@ -4,70 +4,104 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
-	"github.com/chrollo-lucifer-12/shared/utils"
-	storage_go "github.com/supabase-community/storage-go"
-	"github.com/supabase-community/supabase-go"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 	"golang.org/x/sync/errgroup"
 )
 
-type MockStorage struct {
-	UploadFileFn func(bucketID, path string, reader io.Reader, fileOptions ...storage_go.FileOptions) (storage_go.FileUploadResponse, error)
-	ListFilesFn  func(bucketID, path string, opts storage_go.FileSearchOptions) ([]storage_go.FileObject, error)
-	RemoveFileFn func(bucketID string, paths []string) ([]storage_go.FileUploadResponse, error)
-}
-
-func (m *MockStorage) UploadFile(bucketID, path string, reader io.Reader, fileOptions ...storage_go.FileOptions) (storage_go.FileUploadResponse, error) {
-	if m.UploadFileFn != nil {
-		return m.UploadFileFn(bucketID, path, reader, fileOptions...)
-	}
-	return storage_go.FileUploadResponse{}, nil
-}
-
-func (m *MockStorage) ListFiles(bucketID, path string, opts storage_go.FileSearchOptions) ([]storage_go.FileObject, error) {
-	if m.ListFilesFn != nil {
-		return m.ListFilesFn(bucketID, path, opts)
-	}
-	return nil, nil
-}
-
-func (m *MockStorage) RemoveFile(bucketID string, paths []string) ([]storage_go.FileUploadResponse, error) {
-	if m.RemoveFileFn != nil {
-		return m.RemoveFileFn(bucketID, paths)
-	}
-	return nil, nil
-}
-
 type StorageInterface interface {
-	UploadFile(bucketID, path string, reader io.Reader, fileOptions ...storage_go.FileOptions) (storage_go.FileUploadResponse, error)
-	ListFiles(bucketID, path string, opts storage_go.FileSearchOptions) ([]storage_go.FileObject, error)
-	RemoveFile(bucketID string, paths []string) ([]storage_go.FileUploadResponse, error)
+	UploadFile(bucketID, path string, reader io.Reader) error
+	ListFiles(bucketID, path string) ([]string, error)
+	RemoveFile(bucketID string, paths []string) error
+}
+
+type MinioStorage struct {
+	Client *minio.Client
+}
+
+func NewMinioStorage(endpoint, accessKey, region, secretKey string, useSSL bool) (*MinioStorage, error) {
+	client, err := minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: useSSL,
+		Region: region,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &MinioStorage{Client: client}, nil
+}
+
+func (m *MinioStorage) UploadFile(bucketID, path string, reader io.Reader) error {
+	ctx := context.Background()
+
+	contentType := "application/octet-stream"
+	if strings.HasSuffix(path, ".html") {
+		contentType = "text/html"
+	} else if strings.HasSuffix(path, ".css") {
+		contentType = "text/css"
+	} else if strings.HasSuffix(path, ".js") {
+		contentType = "application/javascript"
+	}
+
+	_, err := m.Client.PutObject(ctx, bucketID, path, reader, -1, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	return err
+}
+
+func (m *MinioStorage) ListFiles(bucketID, prefix string) ([]string, error) {
+	ctx := context.Background()
+	var objects []string
+
+	objectCh := m.Client.ListObjects(ctx, bucketID, minio.ListObjectsOptions{
+		Prefix:    prefix,
+		Recursive: true,
+	})
+
+	for object := range objectCh {
+		if object.Err != nil {
+			return nil, object.Err
+		}
+		objects = append(objects, object.Key)
+	}
+	return objects, nil
+}
+
+func (m *MinioStorage) RemoveFile(bucketID string, paths []string) error {
+	ctx := context.Background()
+	objectsCh := make(chan minio.ObjectInfo, len(paths))
+
+	go func() {
+		defer close(objectsCh)
+		for _, p := range paths {
+			objectsCh <- minio.ObjectInfo{Key: p}
+		}
+	}()
+
+	opts := minio.RemoveObjectsOptions{}
+	for rErr := range m.Client.RemoveObjects(ctx, bucketID, objectsCh, opts) {
+		if rErr.Err != nil {
+			log.Println("Failed to remove object:", rErr)
+		}
+	}
+	return nil
 }
 
 type UploadClient struct {
 	storage StorageInterface
 }
 
-func NewUploadClient(apiURL, apiKey string) (*UploadClient, error) {
-	client, err := supabase.NewClient(apiURL, apiKey, nil)
-	if err != nil {
-		return nil, err
-	}
-	return &UploadClient{storage: client.Storage}, nil
-}
-
-func NewUploadClientWithStorage(storage StorageInterface) *UploadClient {
+func NewUploadClient(storage StorageInterface) *UploadClient {
 	return &UploadClient{storage: storage}
 }
 
 func (u *UploadClient) UploadBuild(ctx context.Context, bucketID, slug string) error {
-	buildDir, err := u.getBuildDirectory()
-	if err != nil {
-		return err
-	}
-
+	buildDir := "./dist"
 	files, err := collectFiles(buildDir)
 	if err != nil {
 		return err
@@ -77,7 +111,6 @@ func (u *UploadClient) UploadBuild(ctx context.Context, bucketID, slug string) e
 		_ = u.DeleteDir(slug, bucketID)
 		return err
 	}
-
 	return nil
 }
 
@@ -86,40 +119,24 @@ func (u *UploadClient) UploadFile(baseDir, filePath, bucketID, slug string) erro
 	if err != nil {
 		return err
 	}
+	defer reader.Reset(nil)
 
-	_, err = u.storage.UploadFile(bucketID, filepath.ToSlash(filepath.Join(slug, objectKey)), reader)
-	return err
+	return u.storage.UploadFile(bucketID, filepath.ToSlash(filepath.Join(slug, objectKey)), reader)
 }
 
 func (u *UploadClient) DeleteDir(dir, bucketID string) error {
-	files, err := u.storage.ListFiles(bucketID, dir+"/", storage_go.FileSearchOptions{
-		Limit: 1000,
-	})
+	files, err := u.storage.ListFiles(bucketID, dir+"/")
 	if err != nil {
 		return err
 	}
-
 	if len(files) == 0 {
 		return nil
 	}
-
-	paths := make([]string, 0, len(files))
-	for _, f := range files {
-		paths = append(paths, f.Name)
-	}
-
-	_, err = u.storage.RemoveFile(bucketID, paths)
-	return err
-}
-
-func (u *UploadClient) getBuildDirectory() (string, error) {
-	buildPath := utils.GetPath([]string{"home", "app", "output", "dist"})
-	return filepath.Abs(buildPath)
+	return u.storage.RemoveFile(bucketID, files)
 }
 
 func collectFiles(root string) ([]string, error) {
 	var files []string
-
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -129,29 +146,19 @@ func collectFiles(root string) ([]string, error) {
 		}
 		return nil
 	})
-
 	return files, err
 }
 
-func (u *UploadClient) uploadFilesConcurrently(
-	ctx context.Context,
-	baseDir string,
-	files []string,
-	bucketID string,
-	slug string,
-) error {
-
+func (u *UploadClient) uploadFilesConcurrently(ctx context.Context, baseDir string, files []string, bucketID string, slug string) error {
 	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(5)
 
 	for _, fp := range files {
 		fp := fp
-
 		g.Go(func() error {
 			return u.UploadFile(baseDir, fp, bucketID, slug)
 		})
 	}
-
 	return g.Wait()
 }
 
@@ -174,6 +181,5 @@ func prepareFileUpload(baseDir, filePath string) (*bufio.Reader, string, error) 
 	}
 
 	reader := bufio.NewReaderSize(file, 1024*1024)
-
 	return reader, rel, nil
 }

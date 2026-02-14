@@ -19,9 +19,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Install Redis CLI
-        run: sudo apt-get install -y redis-tools
-
       - name: Run container and stream logs
         run: |
           docker run --rm \
@@ -30,7 +27,9 @@ jobs:
             -e SLUG="${{ github.event.inputs.projectSlug }}" \
             -e GIT_REPOSITORY_URL="${{ github.event.inputs.gitURL }}" \
             -e BUCKET_ID="${{ github.event.inputs.bucketId }}" \
-            -e API_URL="${{ secrets.SUPABASE_URL }}" \
-            -e API_KEY="${{ secrets.SUPABASE_KEY }}" \
+            -e SUPABASE_ENDPOINT="${{ secrets.SUPABASE_ENDPOINT }}" \
+            -e REGION="${{ secrets.REGION }}" \
+            -e SUPABASE_ACCESS_KEY="${{ secrets.SUPABASE_ACCESS_KEY }}" \
+            -e SUPABASE_SECRET_KEY="${{ secrets.SUPABASE_SECRET_KEY }}" \
             -e DSN="${{ secrets.DSN }}" \
             sahil1107/builder-server:latest

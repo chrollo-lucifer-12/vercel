@@ -44,8 +44,10 @@ func main() {
 
 	dsn := os.Getenv("DSN")
 	slug := os.Getenv("SLUG")
-	supabaseUrl := os.Getenv("API_URL")
-	supabaseSecret := os.Getenv("API_KEY")
+	region := os.Getenv("REGION")
+	endPoint := os.Getenv("SUPABASE_ENDPOINT")
+	supabaseAccessKey := os.Getenv("SUPABASE_ACCESS_KEY")
+	supabaseSecret := os.Getenv("SUPABASE_SECRET_KEY")
 	getUserEnv := os.Getenv("USER_ENV")
 	bucketID := os.Getenv("BUCKET_ID")
 	deploymentId := os.Getenv("DEPLOYMENT_ID")
@@ -70,11 +72,13 @@ func main() {
 		return
 	}
 
-	client, err := upload.NewUploadClient(supabaseUrl, supabaseSecret)
+	storage, err := upload.NewMinioStorage(endPoint, supabaseAccessKey, region, supabaseSecret, false)
 	if err != nil {
 		fmt.Println("Supabase client error:", err)
 		return
 	}
+
+	client := upload.NewUploadClient(storage)
 
 	dispatcher.Push(deploymentIdUUID, "Running npm install/build...")
 	outputDir := utils.GetPath([]string{"home", "app", "output"})
