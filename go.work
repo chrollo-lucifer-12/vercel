@@ -4,6 +4,6 @@ use (
 	./api-server
 	./build-server
 	./migrate
-	./s3-reverse-proxy
+	./request-handler
 	./shared
 )
