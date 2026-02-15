@@ -5,6 +5,7 @@ const SIGNUP_KEY = "signup";
 const SIGNIN_KEY = "signin";
 export const USER_KEY = ["auth", "user"];
 export const TOKEN_KEY = ["auth", "token"];
+export const SESSION_KEY = ["session", "refresh"];
 
 export const signupMutationOptions = () => {
   return mutationOptions({
@@ -23,5 +24,17 @@ export const signinMutationOptions = () => {
 export const profileQueryOptions = () => {
   return queryOptions({
     queryKey: USER_KEY,
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+  });
+};
+
+export const tokenQueryOptions = () => {
+  return queryOptions({
+    queryKey: TOKEN_KEY,
+    refetchInterval: 1000 * 60 * 12,
+    staleTime: 1000 * 60 * 12,
+    refetchOnWindowFocus: false,
+    refetchIntervalInBackground: true,
   });
 };

@@ -1,4 +1,4 @@
-import { logoutAction } from "@/actions/auth";
+import { logoutAction, refreshAction } from "@/actions/auth";
 import { profileAction } from "@/actions/user";
 import {
   signinMutationOptions,
@@ -6,6 +6,8 @@ import {
   TOKEN_KEY,
   USER_KEY,
   profileQueryOptions,
+  SESSION_KEY,
+  tokenQueryOptions,
 } from "@/lib/query-options";
 import {
   AccessTokenDetails,
@@ -69,9 +71,27 @@ export const useSignout = () => {
       if (!result.success) throw new Error(result.error);
     },
     onSuccess: () => {
-      queryClient.setQueryData(USER_KEY, null);
-      queryClient.setQueryData(TOKEN_KEY, null);
+      queryClient.cancelQueries();
+      queryClient.removeQueries();
       router.push("/");
+    },
+  });
+};
+
+export const useAccessToken = () => {
+  const queryClient = useQueryClient();
+  return useQuery({
+    ...tokenQueryOptions(),
+    queryFn: async () => {
+      const res = await refreshAction();
+      if (res.success) {
+        queryClient.setQueryData(TOKEN_KEY, {
+          access_token: res.access_token?.access_token,
+          access_token_expires_at: res.access_token?.access_token_expires_at,
+          session_id: res.access_token?.session_id,
+        } as TokenDetails);
+        return res.access_token;
+      }
     },
   });
 };

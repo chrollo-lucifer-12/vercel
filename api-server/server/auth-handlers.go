@@ -186,6 +186,7 @@ func (h *ServerClient) refreshAccessTokenHandler(w http.ResponseWriter, r *http.
 	json.NewEncoder(w).Encode(RenewAccessTokenRes{
 		AccessToken:          accessToken,
 		AccessTokenExpiresAt: accessClaims.RegisteredClaims.ExpiresAt.Time,
+		SessionID:            session.UserID.String(),
 	})
 }
 

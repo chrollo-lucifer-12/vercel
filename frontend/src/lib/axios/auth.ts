@@ -1,7 +1,26 @@
 import "server-only";
 import { axiosInstance } from "./axios";
-import { LoginInput, LoginResponse, SignupInput } from "../types";
+import {
+  AccessTokenDetails,
+  LoginInput,
+  LoginResponse,
+  RefreshTokenDetails,
+  SignupInput,
+  TokenDetails,
+} from "../types";
 import { serverEnv } from "../env/server";
+
+export const refresh = async (refreshToken: string) => {
+  try {
+    const res = await axiosInstance.post(serverEnv.REFRESH_ENDPOINT, {
+      refresh_token: refreshToken,
+    });
+    return res.data as TokenDetails;
+  } catch (err) {
+    console.error(err);
+    throw err instanceof Error ? err : new Error("Failed to refresh");
+  }
+};
 
 export const signup = async (data: SignupInput) => {
   try {
