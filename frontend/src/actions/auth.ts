@@ -1,6 +1,6 @@
 "use server";
 
-import { logout, signin, signup } from "@/lib/auth";
+import { logout, signin, signup } from "@/lib/axios/auth";
 import { loginSchema, signupSchema } from "@/lib/schema";
 import { cookies } from "next/headers";
 import z from "zod";

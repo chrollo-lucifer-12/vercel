@@ -1,8 +1,7 @@
 import "server-only";
-
 import { axiosInstance } from "./axios";
-import { LoginInput, LoginResponse, SignupInput } from "./types";
-import { serverEnv } from "./env/server";
+import { LoginInput, LoginResponse, SignupInput } from "../types";
+import { serverEnv } from "../env/server";
 
 export const signup = async (data: SignupInput) => {
   try {

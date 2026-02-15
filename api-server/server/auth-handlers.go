@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -185,4 +187,25 @@ func (h *ServerClient) refreshAccessTokenHandler(w http.ResponseWriter, r *http.
 		AccessToken:          accessToken,
 		AccessTokenExpiresAt: accessClaims.RegisteredClaims.ExpiresAt.Time,
 	})
+}
+
+func (h *ServerClient) getUserProfileHandler(w http.ResponseWriter, r *http.Request) {
+	claims := r.Context().Value(authKey{}).(*auth.UserClaims)
+
+	ctx := r.Context()
+	user, err := h.db.GetUser(ctx, claims.Email)
+
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(UserRes{Name: user.Name, Email: user.Email})
 }

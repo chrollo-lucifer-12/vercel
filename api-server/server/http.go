@@ -85,6 +85,7 @@ func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
 		{"/api/v1/auth/register", http.MethodPost, s.registerUserHandler, false},
 		{"/api/v1/auth/login", http.MethodPost, s.loginUserHandler, false},
 		{"/api/v1/auth/refresh", http.MethodPost, s.refreshAccessTokenHandler, false},
+		{"/api/v1/user/me", http.MethodGet, s.getUserProfileHandler, true},
 	}
 
 	for _, r := range routes {
