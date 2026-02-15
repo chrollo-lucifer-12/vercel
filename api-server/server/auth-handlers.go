@@ -24,13 +24,19 @@ func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Reques
 		http.Error(w, "Error hashing password: "+err.Error(), http.StatusInternalServerError)
 	}
 
+	ctx := r.Context()
+
+	_, err = h.db.GetUser(ctx, u.Email)
+	if err == nil {
+		http.Error(w, "User with this email already exists", http.StatusConflict)
+		return
+	}
+
 	newUser := db.User{
 		Name:     u.Name,
 		Email:    u.Email,
 		Password: hashedPassword,
 	}
-
-	ctx := context.Background()
 
 	err = h.auth.CreateUser(ctx, &newUser)
 	if err != nil {
