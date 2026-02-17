@@ -23,6 +23,10 @@ export const useSignUp = () => {
   const router = useRouter();
   return useMutation({
     ...signupMutationOptions(),
+    throwOnError: false,
+    onError: (error) => {
+      console.log(error);
+    },
     onSuccess: (data) => {
       if (data.success) {
         router.push("/auth/signin");

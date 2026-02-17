@@ -29,7 +29,7 @@ export const signupAction = async (formData: FormData) => {
   if (!parsedRes.success) {
     return {
       success: false,
-      error: z.treeifyError(parsedRes.error),
+      error: parsedRes.error.flatten().fieldErrors,
     };
   }
 
