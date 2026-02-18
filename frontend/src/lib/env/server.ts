@@ -9,6 +9,7 @@ const envSchema = z.object({
   LOGOUT_ENDPOINT: z.string().min(1),
   PROFILE_ENDPOINT: z.string().min(1),
   REFRESH_ENDPOINT: z.string().min(1),
+  VERIFY_ENDPOINT: z.string().min(1),
 });
 
 export const serverEnv = envSchema.parse(process.env);

@@ -1,10 +1,30 @@
 "use server";
 
-import { logout, refresh, signin, signup } from "@/lib/axios/auth";
+import { logout, refresh, signin, signup, verify } from "@/lib/axios/auth";
 import { loginSchema, signupSchema } from "@/lib/schema";
 import { RefreshTokenDetails } from "@/lib/types";
 import { cookies } from "next/headers";
 import z from "zod";
+
+export const verifyAction = async (formData: FormData) => {
+  const parsedRes = z
+    .object({ email: z.email() })
+    .safeParse({ email: formData.get("email") });
+  if (!parsedRes.success) {
+    return {
+      success: false,
+      error: parsedRes.error.flatten().fieldErrors,
+    };
+  }
+  try {
+    await verify(parsedRes.data.email);
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to send mail",
+    };
+  }
+};
 
 export const logoutAction = async (sessionId: string) => {
   try {

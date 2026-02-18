@@ -8,6 +8,7 @@ import {
   profileQueryOptions,
   SESSION_KEY,
   tokenQueryOptions,
+  verifyMutationOptions,
 } from "@/lib/query-options";
 import {
   AccessTokenDetails,
@@ -18,6 +19,13 @@ import {
 } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+
+export const useVerify = () => {
+  return useMutation({
+    ...verifyMutationOptions(),
+    throwOnError: false,
+  });
+};
 
 export const useSignUp = () => {
   const router = useRouter();

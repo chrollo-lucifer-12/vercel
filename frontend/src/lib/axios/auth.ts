@@ -65,3 +65,12 @@ export const logout = async (sessionId: string) => {
     throw err instanceof Error ? err : new Error("Failed to sign in");
   }
 };
+
+export const verify = async (email: string) => {
+  try {
+    await axiosInstance.post(`${serverEnv.VERIFY_ENDPOINT}`, { email });
+  } catch (err) {
+    console.error(err);
+    throw err instanceof Error ? err : new Error("Failed to verify");
+  }
+};

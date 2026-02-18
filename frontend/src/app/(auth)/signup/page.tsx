@@ -1,15 +1,6 @@
 "use client";
 
-import CustomInputGroup from "@/components/custom/input-group";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup } from "@/components/ui/field";
+import AuthForm from "@/components/custom/auth-form";
 import { useSignUp } from "@/hooks/use-auth";
 import {
   EnvelopeIcon,
@@ -20,70 +11,46 @@ import {
 const SignupPage = () => {
   const { mutate, isPending, data } = useSignUp();
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Create an account</CardTitle>
-        <CardDescription>
-          Enter your information below to create your account
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const formData = new FormData(form);
-            mutate(formData);
-          }}
-        >
-          <FieldGroup>
-            <Field>
-              <CustomInputGroup
-                id="name"
-                placeholder="John Doe"
-                text="Full Name"
-                type="text"
-                icon={IdentificationCardIcon}
-                required={true}
-                error={data?.error?.name?.[0] ?? null}
-              />
-            </Field>
-            <Field>
-              <CustomInputGroup
-                icon={EnvelopeIcon}
-                id="email"
-                placeholder="john@gmail.com"
-                text="Email"
-                type="email"
-                required={true}
-                error={data?.error?.email?.[0] ?? null}
-              />
-            </Field>
-            <Field>
-              <CustomInputGroup
-                icon={PasswordIcon}
-                id="password"
-                placeholder=""
-                text="Password"
-                type="password"
-                required={true}
-                error={data?.error?.password?.[0] ?? null}
-              />
-            </Field>
-            <FieldGroup>
-              <Field>
-                <Button type="submit" disabled={isPending}>
-                  Create Account
-                </Button>
-                <FieldDescription className="px-6 text-center">
-                  Already have an account? <a href="/signin">Sign in</a>
-                </FieldDescription>
-              </Field>
-            </FieldGroup>
-          </FieldGroup>
-        </form>
-      </CardContent>
-    </Card>
+    <AuthForm
+      title="Create an account"
+      description="Enter your information below to create your account"
+      submitText="Create Account"
+      loadingText="Creating account..."
+      isPending={isPending}
+      errors={data?.error}
+      onSubmit={(formData) => mutate(formData)}
+      footerText={
+        <p>
+          Already have an account? <a href="/signin">Sign in</a>
+        </p>
+      }
+      fields={[
+        {
+          id: "name",
+          text: "Full Name",
+          type: "text",
+          placeholder: "John Doe",
+          icon: IdentificationCardIcon,
+          required: true,
+        },
+        {
+          id: "email",
+          text: "Email",
+          type: "email",
+          placeholder: "john@gmail.com",
+          icon: EnvelopeIcon,
+          required: true,
+        },
+        {
+          id: "password",
+          text: "Password",
+          type: "password",
+          icon: PasswordIcon,
+          required: true,
+          placeholder: "",
+        },
+      ]}
+    />
   );
 };
 
