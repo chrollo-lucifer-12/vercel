@@ -44,7 +44,12 @@ const CustomInputGroup = ({
         />
         <InputGroupAddon align="block-start">
           <IconComponent
-            className={`${error ? "group-hover:text-amber-600 group-focus-within:text-amber-600" : "group-hover:text-[#26b3a6] group-focus-within:text-[#26b3a6]"} transition duration-150`}
+            weight="duotone"
+            className={`${error ? "group-hover:text-amber-600 group-focus-within:text-amber-600" : "group-hover:text-[#26b3a6] group-focus-within:text-[#26b3a6]"} group-hover:hidden group-focus-within:hidden transition duration-150`}
+          />
+          <IconComponent
+            weight="fill"
+            className={`${error ? "group-hover:text-amber-600 group-focus-within:text-amber-600" : "group-hover:text-[#26b3a6] group-focus-within:text-[#26b3a6]"} hidden group-hover:block group-focus-within:block transition duration-150`}
           />
           <InputGroupText
             className={`${error ? "group-hover:text-amber-600 group-focus-within:text-amber-600" : "group-hover:text-[#26b3a6] group-focus-within:text-[#26b3a6]"} transition duration-150`}

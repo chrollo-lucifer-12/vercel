@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Outfit } from "next/font/google";
 import "./globals.css";
 import TanstackProvider from "@/providers/tanstack-provider";
 import { Toaster } from "@/components/ui/sonner";
+import TokenComponent from "@/components/token-component";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -31,7 +32,10 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <TanstackProvider>{children}</TanstackProvider>
+        <TanstackProvider>
+          <TokenComponent />
+          {children}
+        </TanstackProvider>
         <Toaster />
       </body>
     </html>
