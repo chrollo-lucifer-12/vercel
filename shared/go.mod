@@ -45,6 +45,7 @@ require (
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/mattn/go-sqlite3 v1.14.33 // indirect
+	github.com/resend/resend-go/v3 v3.1.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	gorm.io/driver/mysql v1.6.0 // indirect
 )

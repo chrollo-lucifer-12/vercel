@@ -23,7 +23,7 @@ func NewDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, fmt.Errorf("No dsn")
 	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
 		return nil, err
@@ -37,7 +37,7 @@ func NewTestDB(dsn string, ctx context.Context) (*DB, error) {
 		return nil, fmt.Errorf("No dsn")
 	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {
 		return nil, err
@@ -51,7 +51,7 @@ func (d *DB) Raw() *gorm.DB {
 }
 
 func (d *DB) MigrateDB() error {
-	err := d.db.AutoMigrate(&User{}, &Session{}, &Project{}, &Deployment{}, &LogEvent{}, &Cache{}, &WebsiteAnalytics{})
+	err := d.db.AutoMigrate(&User{}, &Otp{}, &Session{}, &Project{}, &Deployment{}, &LogEvent{}, &Cache{}, &WebsiteAnalytics{})
 	if err != nil {
 		return err
 	}
@@ -81,6 +81,18 @@ func update[T any](ctx context.Context, db *gorm.DB, query string, val T, args .
 func deleteBy[T any](ctx context.Context, db *gorm.DB, query string, args ...any) error {
 	_, err := gorm.G[T](db).Where(query, args...).Delete(ctx)
 	return err
+}
+
+func (d *DB) CreateToken(ctx context.Context, t *Otp) error {
+	return create(ctx, d.db, t)
+}
+
+func (d *DB) GetToken(ctx context.Context, token string) (Otp, error) {
+	return first[Otp](ctx, d.db, "token = ?", token)
+}
+
+func (d *DB) GetTokenByUserID(ctx context.Context, userId uuid.UUID) (Otp, error) {
+	return first[Otp](ctx, d.db, "user_id = ?", userId)
 }
 
 func (d *DB) CreateUser(ctx context.Context, u *User) error {

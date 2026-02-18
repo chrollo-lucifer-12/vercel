@@ -8,6 +8,7 @@ import (
 	"github.com/chrollo-lucifer-12/shared/cache"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/env"
+	"github.com/chrollo-lucifer-12/shared/mail"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 )
 
@@ -28,6 +29,7 @@ func main() {
 	githubToken := env.GithubToken.GetValue()
 	factory := workflow.NewDefaultGithubClientFactory()
 	githubClient := factory.NewClient(ctx, githubToken)
+	mailClient := mail.NewMailClient(env.ResendApiKey.GetValue())
 
 	validator := workflow.NewDefaultConfigValidator()
 	builder := workflow.NewDefaultEventBuilder()
@@ -39,7 +41,7 @@ func main() {
 		builder,
 	)
 
-	h, err := server.NewServerClient(w, db)
+	h, err := server.NewServerClient(w, db, mailClient)
 	if err != nil {
 		log.Fatal(err)
 		return

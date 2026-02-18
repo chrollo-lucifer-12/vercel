@@ -24,10 +24,19 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 
 type User struct {
 	Base
-	Name     string    `gorm:"not null;check:name <> ''"`
-	Email    string    `gorm:"unique;not null;check:email <> ''"`
-	Password string    `gorm:"not null;check:password <> ''"`
-	Projects []Project `gorm:"foreignKey:UserID"`
+	Name       string    `gorm:"not null;check:name <> ''"`
+	Email      string    `gorm:"unique;not null;check:email <> ''"`
+	Password   string    `gorm:"not null;check:password <> ''"`
+	Projects   []Project `gorm:"foreignKey:UserID"`
+	IsVerified bool
+}
+
+type Otp struct {
+	UserID    uuid.UUID `gorm:"type:uuid;primaryKey"`
+	User      *User     `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
+	Token     string
+	CreatedAt time.Time `gorm:"autoCreateTime"`
+	ExpiresAt time.Time
 }
 
 type Session struct {

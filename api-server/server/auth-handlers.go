@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +14,116 @@ import (
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/utils"
 )
+
+func (h *ServerClient) verifyEmailHandler(w http.ResponseWriter, r *http.Request) {
+
+	token := r.URL.Query().Get("token")
+
+	if token == "" {
+		http.Error(w, "Token missing", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	tokenRecord, err := h.db.GetToken(ctx, token)
+	if err != nil {
+		http.Error(w, "Invalid token", http.StatusBadRequest)
+		return
+	}
+
+	if time.Now().After(tokenRecord.ExpiresAt) {
+
+		http.Error(w, "Token expired", http.StatusBadRequest)
+		return
+	}
+
+	err = h.db.UpdateUser(ctx, db.User{IsVerified: true, Base: db.Base{ID: tokenRecord.UserID}})
+	if err != nil {
+		http.Error(w, "Failed to verify user", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Email verified successfully",
+	})
+}
+
+func (h *ServerClient) createVerificationMail(w http.ResponseWriter, r *http.Request) {
+	type Request struct {
+		Email string `json:"email"`
+	}
+
+	var req Request
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	user, err := h.db.GetUser(ctx, req.Email)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
+
+	if user.IsVerified {
+		http.Error(w, "User already verified", http.StatusBadRequest)
+		return
+	}
+
+	var token string
+
+	existingToken, err := h.db.GetTokenByUserID(ctx, user.ID)
+
+	if err == nil {
+		if time.Now().Before(existingToken.ExpiresAt) {
+			http.Error(w, "Verification mail already sent. Please wait until token expires.", http.StatusTooManyRequests)
+			return
+		}
+	}
+
+	token, err = utils.GenerateToken()
+	if err != nil {
+		http.Error(w, "Token generation failed", http.StatusInternalServerError)
+		return
+	}
+
+	newToken := &db.Otp{
+		UserID:    user.ID,
+		Token:     token,
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+	}
+
+	if err := h.db.CreateToken(ctx, newToken); err != nil {
+		fmt.Println(err)
+		http.Error(w, "Token creation failed", http.StatusInternalServerError)
+		return
+	}
+
+	verifyLink := "http://localhost:9000/auth/verify-email?token=" + token
+
+	err = h.mail.SendMail(
+		ctx,
+		"Acme <onboarding@resend.dev>",
+		user.Email,
+		"Verify your email",
+		"<p>Click below to verify:</p><a href='"+verifyLink+"'>Verify Email</a>",
+	)
+
+	if err != nil {
+		http.Error(w, "Failed to send mail", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Verification email sent",
+	})
+}
 
 func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Request) {
 	var u UserRequest
@@ -35,14 +146,38 @@ func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Reques
 	}
 
 	newUser := db.User{
-		Name:     u.Name,
-		Email:    u.Email,
-		Password: hashedPassword,
+		Name:       u.Name,
+		Email:      u.Email,
+		Password:   hashedPassword,
+		IsVerified: false,
 	}
 
 	err = h.auth.CreateUser(ctx, &newUser)
 	if err != nil {
 		http.Error(w, "Error creating user: "+err.Error(), http.StatusInternalServerError)
+	}
+
+	token, err := utils.GenerateToken()
+	if err != nil {
+		http.Error(w, "Error generating token: "+err.Error(), http.StatusInternalServerError)
+	}
+
+	newToken := &db.Otp{
+		UserID:    newUser.ID,
+		Token:     token,
+		ExpiresAt: time.Now().Add(15 * time.Minute),
+	}
+
+	err = h.db.CreateToken(ctx, newToken)
+	if err != nil {
+		http.Error(w, "Error creating token: "+err.Error(), http.StatusInternalServerError)
+	}
+
+	verifyLink := "http://localhost:9000/auth/verify-email" + "?token=" + newToken.Token
+
+	err = h.mail.SendMail(ctx, "Acme <onboarding@resend.dev>", u.Email, "Email verification", "<p>"+verifyLink+"</p>")
+	if err != nil {
+		http.Error(w, "Error sending mail: "+err.Error(), http.StatusInternalServerError)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -70,6 +205,10 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 	if !ok {
 		http.Error(w, "Email or password is incorrect", http.StatusUnauthorized)
 		return
+	}
+
+	if user.IsVerified == false {
+		http.Error(w, "User is not verified yet", http.StatusUnauthorized)
 	}
 
 	accessToken, accessClaims, err := h.auth.Maker.CreateToken(user.ID, user.Email, 15*time.Minute)

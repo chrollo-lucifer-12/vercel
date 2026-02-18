@@ -13,10 +13,11 @@ import (
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
+	"github.com/chrollo-lucifer-12/shared/mail"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 )
 
-func NewServerClient(wClient *workflow.WorkflowClient, dbClient *db.DB) (*ServerClient, error) {
+func NewServerClient(wClient *workflow.WorkflowClient, dbClient *db.DB, mailClient *mail.MailClient) (*ServerClient, error) {
 
 	if wClient == nil {
 		return nil, fmt.Errorf("workflow client required")
@@ -32,6 +33,7 @@ func NewServerClient(wClient *workflow.WorkflowClient, dbClient *db.DB) (*Server
 		wClient: wClient,
 		db:      dbClient,
 		auth:    authService,
+		mail:    mailClient,
 	}
 
 	server.setupHTTP()
@@ -83,6 +85,8 @@ func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
 		{"/api/v1/project/analytics", http.MethodGet, s.getProjectAnalytics, true},
 
 		{"/api/v1/auth/register", http.MethodPost, s.registerUserHandler, false},
+		{"/auth/verify-email", http.MethodGet, s.verifyEmailHandler, false},
+		{"/api/v1/create/token", http.MethodPost, s.createVerificationMail, false},
 		{"/api/v1/auth/login", http.MethodPost, s.loginUserHandler, false},
 		{"/api/v1/auth/refresh", http.MethodPost, s.refreshAccessTokenHandler, false},
 		{"/api/v1/user/me", http.MethodGet, s.getUserProfileHandler, true},

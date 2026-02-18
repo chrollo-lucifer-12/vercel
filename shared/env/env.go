@@ -22,6 +22,7 @@ const (
 	SupabaseAccessSecret EnvKey = "SUPABASE_ACCESS_SECRET"
 	Region               EnvKey = "REGION"
 	SupabaseEndpoint     EnvKey = "SUPABASE_ENDPOINT"
+	ResendApiKey         EnvKey = "RESEND_API_KEY"
 )
 
 const (
