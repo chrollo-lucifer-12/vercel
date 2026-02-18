@@ -19,11 +19,15 @@ import {
 } from "@/lib/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export const useVerify = () => {
   return useMutation({
     ...verifyMutationOptions(),
     throwOnError: false,
+    onError: (error) => {
+      toast.error(error.message);
+    },
   });
 };
 
@@ -34,9 +38,13 @@ export const useSignUp = () => {
     throwOnError: false,
     onError: (error) => {
       console.log(error);
+      toast.error(error.message);
     },
     onSuccess: (data) => {
       if (data.success) {
+        toast.success(
+          "Sign up successful check your email for verification link.",
+        );
         router.push("/auth/signin");
       }
     },
@@ -48,6 +56,9 @@ export const useSignIn = () => {
   const queryClient = useQueryClient();
   return useMutation({
     ...signinMutationOptions(),
+    onError: (error) => {
+      toast.error(error.message);
+    },
     onSuccess: (data) => {
       if (data.success) {
         const authDetails = data.data as AuthUserDetails;
@@ -60,6 +71,7 @@ export const useSignIn = () => {
           access_token_expires_at: authDetails.access_token_expires_at,
           session_id: authDetails.session_id,
         } as TokenDetails);
+        toast.success("Login successful");
         router.push("/");
       }
     },

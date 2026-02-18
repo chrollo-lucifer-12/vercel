@@ -135,6 +135,7 @@ func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Reques
 	hashedPassword, err := utils.HashPassword(u.Password)
 	if err != nil {
 		http.Error(w, "Error hashing password: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	ctx := r.Context()
@@ -155,11 +156,13 @@ func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Reques
 	err = h.auth.CreateUser(ctx, &newUser)
 	if err != nil {
 		http.Error(w, "Error creating user: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	token, err := utils.GenerateToken()
 	if err != nil {
 		http.Error(w, "Error generating token: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	newToken := &db.Otp{
@@ -171,6 +174,7 @@ func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Reques
 	err = h.db.CreateToken(ctx, newToken)
 	if err != nil {
 		http.Error(w, "Error creating token: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	verifyLink := "http://localhost:9000/auth/verify-email" + "?token=" + newToken.Token
@@ -178,6 +182,7 @@ func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Reques
 	err = h.mail.SendMail(ctx, "Acme <onboarding@resend.dev>", u.Email, "Email verification", "<p>"+verifyLink+"</p>")
 	if err != nil {
 		http.Error(w, "Error sending mail: "+err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

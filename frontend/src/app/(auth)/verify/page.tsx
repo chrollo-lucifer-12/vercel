@@ -12,7 +12,7 @@ const VerifyPage = () => {
       description=""
       loadingText="Verifying..."
       submitText="Send Mail"
-      isPending={false}
+      isPending={isPending}
       errors={data?.error}
       onSubmit={(formData) => mutate(formData)}
       footerText={
