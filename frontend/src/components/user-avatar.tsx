@@ -17,6 +17,7 @@ import { Button } from "./ui/button";
 const UserAvatar = () => {
   const { data, isLoading, error } = useProfile();
   const { mutate, isPending } = useSignout();
+
   const { data: session } = useSession();
   if (!session) return null;
   return (
