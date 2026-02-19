@@ -16,9 +16,9 @@ const VerifyPage = () => {
       errors={data?.error}
       onSubmit={(formData) => mutate(formData)}
       footerText={
-        <p>
+        <span>
           Already have an account? <a href="/signin">Sign in</a>
-        </p>
+        </span>
       }
       fields={[
         {

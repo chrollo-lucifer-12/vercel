@@ -40,7 +40,7 @@ export const profileQueryOptions = () => {
 export const tokenQueryOptions = () => {
   return queryOptions({
     queryKey: TOKEN_KEY,
-    refetchInterval: 1000 * 60 * 12,
+    refetchInterval: 1000 * 60 * 1,
     staleTime: 1000 * 60 * 12,
     refetchOnWindowFocus: false,
     refetchIntervalInBackground: true,

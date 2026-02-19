@@ -226,7 +226,7 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 	refreshToken, refreshClaims, err := h.auth.Maker.CreateToken(user.ID, user.Email, 7*24*time.Hour)
 
 	newSession := db.Session{
-		UserID:       utils.StringToUUID(refreshClaims.RegisteredClaims.ID),
+		UserID:       user.ID,
 		UserEmail:    user.Email,
 		RefreshToken: refreshToken,
 		Revoked:      false,
@@ -303,7 +303,7 @@ func (h *ServerClient) refreshAccessTokenHandler(w http.ResponseWriter, r *http.
 
 	ctx := context.Background()
 
-	session, err := h.auth.GetSession(ctx, utils.StringToUUID(refreshClaims.RegisteredClaims.ID))
+	session, err := h.auth.GetSession(ctx, refreshClaims.ID)
 	if err != nil {
 		http.Error(w, "error fetching session: "+err.Error(), http.StatusInternalServerError)
 		return

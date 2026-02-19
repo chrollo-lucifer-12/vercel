@@ -94,10 +94,14 @@ export const signinAction = async (formData: FormData) => {
       refresh_token_expires_at,
     });
 
+    console.log(refreshTokenStr);
+    console.log(new Date(refresh_token_expires_at));
+
     const cookieStore = await cookies();
-    cookieStore.set("refresh_token", refreshTokenStr, {
-      secure: true,
-      httpOnly: true,
+    cookieStore.set({
+      name: "refresh_token",
+      value: refreshTokenStr,
+      path: "/",
       expires: new Date(refresh_token_expires_at),
     });
 
@@ -117,6 +121,7 @@ export const refreshAction = async () => {
   try {
     const cookieStore = await cookies();
     const refreshTokenCookie = cookieStore.get("refresh_token")?.value;
+    console.log(refreshTokenCookie);
     if (refreshTokenCookie) {
       const parseCookie = JSON.parse(refreshTokenCookie) as RefreshTokenDetails;
       const res = await refresh(parseCookie.refresh_token);

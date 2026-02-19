@@ -16,9 +16,9 @@ const SigninPage = () => {
       errors={data?.error}
       onSubmit={(formData) => mutate(formData)}
       footerText={
-        <p>
+        <span>
           Don't have an account? <a href="/signup">Sign up</a>
-        </p>
+        </span>
       }
       fields={[
         {
