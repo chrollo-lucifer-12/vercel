@@ -26,13 +26,14 @@ export const verifyAction = async (formData: FormData) => {
   }
 };
 
-export const logoutAction = async (sessionId: string) => {
+export const logoutAction = async (sessionId: string, accessToken: string) => {
   try {
-    await logout(sessionId);
+    await logout(sessionId, accessToken);
     const cookieStore = await cookies();
     cookieStore.delete("refresh_token");
     return { success: true };
   } catch (error) {
+    console.log(error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to logout",

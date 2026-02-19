@@ -57,9 +57,13 @@ export const signin = async (data: LoginInput) => {
   }
 };
 
-export const logout = async (sessionId: string) => {
+export const logout = async (sessionId: string, accessToken: string) => {
   try {
-    await axiosInstance.delete(`${serverEnv.LOGOUT_ENDPOINT}/${sessionId}`);
+    await axiosInstance.delete(`${serverEnv.LOGOUT_ENDPOINT}/${sessionId}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to sign in");

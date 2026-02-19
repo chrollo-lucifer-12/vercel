@@ -1,5 +1,6 @@
 import { signinAction, signupAction, verifyAction } from "@/actions/auth";
 import { mutationOptions, queryOptions } from "@tanstack/react-query";
+import { User } from "./types";
 
 const SIGNUP_KEY = "signup";
 const SIGNIN_KEY = "signin";
@@ -30,7 +31,7 @@ export const signinMutationOptions = () => {
 };
 
 export const profileQueryOptions = () => {
-  return queryOptions({
+  return queryOptions<User>({
     queryKey: USER_KEY,
     staleTime: Infinity,
     refetchOnWindowFocus: false,

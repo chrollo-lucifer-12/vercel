@@ -91,8 +91,11 @@ export const useSignout = () => {
 
       if (!sessionId) throw new Error("No session ID");
 
-      const result = await logoutAction(sessionId);
-      if (!result.success) throw new Error(result.error);
+      const result = await logoutAction(sessionId, authData.access_token);
+      if (!result.success) {
+        console.log(result.error);
+        throw new Error(result.error);
+      }
     },
     onSuccess: () => {
       queryClient.cancelQueries();
@@ -130,14 +133,14 @@ export const useProfile = () => {
 
   return useQuery({
     ...profileQueryOptions(),
-    queryFn: async () => {
+    queryFn: async (): Promise<User> => {
       const tokenData = queryClient.getQueryData(TOKEN_KEY) as TokenDetails;
       const res = await profileAction(tokenData.access_token);
-      if (!res.success) {
+      if (!res.success || !res.user) {
         throw new Error(res.error ?? "Failed to fetch profile");
       }
       return res.user;
     },
-    initialData: queryClient.getQueryData(USER_KEY),
+    initialData: queryClient.getQueryData<User>(USER_KEY),
   });
 };
