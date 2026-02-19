@@ -60,13 +60,14 @@ func newAuthService(dbClient *db.DB) *auth.AuthService {
 }
 
 func (s *ServerClient) setupHTTP() {
-
+	logger := log.New(os.Stdout, "HTTP: ", log.LstdFlags)
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
 	s.server = &http.Server{
-		Addr:    ":9000",
-		Handler: mux,
+		Addr:     ":9000",
+		Handler:  mux,
+		ErrorLog: logger,
 	}
 }
 
@@ -79,7 +80,7 @@ func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
 		{"/api/v1/projects", http.MethodGet, s.getAllProjectsHandler, true},
 		{"/api/v1/project", http.MethodGet, s.getProjectHandler, true},
 		{"/api/v1/project/delete", http.MethodDelete, s.deleteProjectHandler, true},
-		{"/api/v1/auth/logout", http.MethodPost, s.logoutUserHandler, true},
+		{"/api/v1/auth/logout/{sessionID}", http.MethodDelete, s.logoutUserHandler, true},
 		{"/api/v1/deployments", http.MethodGet, s.getAllDeploymentsHandler, true},
 		{"/api/v1/deployment", http.MethodGet, s.getDeploymentHandler, true},
 		{"/api/v1/project/analytics", http.MethodGet, s.getProjectAnalytics, true},
@@ -97,6 +98,7 @@ func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
 		handler := Chain(
 			http.HandlerFunc(r.handler),
 			s.methodMiddleware(r.method),
+			s.loggingMiddleware,
 		)
 
 		if r.protected {

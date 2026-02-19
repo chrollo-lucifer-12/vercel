@@ -3,14 +3,32 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 )
 
+func (s *ServerClient) loggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		next.ServeHTTP(w, r)
+
+		log.Printf(
+			"%s %s %s",
+			r.Method,
+			r.URL.Path,
+			time.Since(start),
+		)
+	})
+}
+
 func verifyClaimsFromHeader(r *http.Request, maker *auth.JWTMaker) (*auth.UserClaims, error) {
 	authHeader := r.Header.Get("Authorization")
+	fmt.Println(authHeader)
 	if authHeader == "" {
 		return nil, fmt.Errorf("Authorization header is missing")
 	}

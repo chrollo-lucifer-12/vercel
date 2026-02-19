@@ -105,13 +105,12 @@ export const useSignout = () => {
   });
 };
 
-export const useAccessToken = () => {
+export const useSession = () => {
   const queryClient = useQueryClient();
   return useQuery({
     ...tokenQueryOptions(),
     queryFn: async () => {
       const res = await refreshAction();
-      console.log(res);
       if (res.success) {
         console.log("updating", res.access_token);
         queryClient.setQueryData(TOKEN_KEY, {
@@ -120,8 +119,6 @@ export const useAccessToken = () => {
           session_id: res.access_token?.session_id,
         } as TokenDetails);
         return res.access_token;
-      } else {
-        console.log(res.error);
       }
       return null;
     },

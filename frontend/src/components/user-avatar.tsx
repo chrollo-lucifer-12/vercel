@@ -1,6 +1,6 @@
 "use client";
 
-import { useProfile, useSignout } from "@/hooks/use-auth";
+import { useProfile, useSession, useSignout } from "@/hooks/use-auth";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -17,6 +17,8 @@ import { Button } from "./ui/button";
 const UserAvatar = () => {
   const { data, isLoading, error } = useProfile();
   const { mutate, isPending } = useSignout();
+  const { data: session } = useSession();
+  if (!session) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useAccessToken } from "@/hooks/use-auth";
+import { useSession } from "@/hooks/use-auth";
 
 function TokenComponent() {
-  useAccessToken();
+  useSession();
   return null;
 }
 

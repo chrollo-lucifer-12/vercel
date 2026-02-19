@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
@@ -252,16 +251,8 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 }
 
 func (h *ServerClient) logoutUserHandler(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
-	parts := strings.Split(path, "/")
-
-	if len(parts) < 3 {
-		http.Error(w, "invalid path", http.StatusBadRequest)
-		return
-	}
-
-	id := parts[2]
-	sessionID := utils.StringToUUID(id)
+	sessionIDStr := r.PathValue("sessionID")
+	sessionID := utils.StringToUUID(sessionIDStr)
 
 	claims := r.Context().Value(authKey{}).(*auth.UserClaims)
 
