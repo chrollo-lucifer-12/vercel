@@ -112,13 +112,13 @@ export const useSession = () => {
     queryFn: async () => {
       const res = await refreshAction();
       if (res.success) {
-        console.log("updating", res.access_token);
         queryClient.setQueryData(TOKEN_KEY, {
           access_token: res.access_token?.access_token,
           access_token_expires_at: res.access_token?.access_token_expires_at,
           session_id: res.access_token?.session_id,
         } as TokenDetails);
         return res.access_token;
+      } else {
       }
       return null;
     },

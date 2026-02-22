@@ -136,8 +136,35 @@ func (d *DB) GetProjectByID(ctx context.Context, id uuid.UUID) (Project, error) 
 	return first[Project](ctx, d.db, "id = ?", id)
 }
 
-func (d *DB) GetAllProjects(ctx context.Context, userID uuid.UUID) ([]Project, error) {
-	return find[Project](ctx, d.db, "user_id = ?", userID)
+func (d *DB) GetAllProjects(
+	ctx context.Context,
+	userID uuid.UUID,
+	name string,
+	gitURL string,
+	limit int,
+	offset int,
+) ([]Project, error) {
+
+	var projects []Project
+
+	query := d.db.WithContext(ctx).
+		Where("user_id = ?", userID)
+
+	if name != "" {
+		query = query.Where("name ILIKE ?", "%"+name+"%")
+	}
+
+	if gitURL != "" {
+		query = query.Where("git_url ILIKE ?", "%"+gitURL+"%")
+	}
+
+	err := query.
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&projects).Error
+
+	return projects, err
 }
 
 func (d *DB) UpdateProject(ctx context.Context, id uuid.UUID, p Project) error {

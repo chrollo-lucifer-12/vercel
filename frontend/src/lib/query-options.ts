@@ -8,6 +8,13 @@ export const USER_KEY = ["auth", "user"];
 export const TOKEN_KEY = ["auth", "token"];
 export const SESSION_KEY = ["session", "refresh"];
 const VERIFY_KEY = ["verify"];
+const PROJECT_KEY = ["projects"];
+
+export const projectOptions = () => {
+  return queryOptions({
+    queryKey: PROJECT_KEY,
+  });
+};
 
 export const verifyMutationOptions = () => {
   return mutationOptions({

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
@@ -52,10 +53,29 @@ func (h *ServerClient) createProjectHandler(w http.ResponseWriter, r *http.Reque
 func (h *ServerClient) getAllProjectsHandler(w http.ResponseWriter, r *http.Request) {
 	claims := r.Context().Value(authKey{}).(*auth.UserClaims)
 	userID := claims.ID
-
 	ctx := r.Context()
-	projects, err := h.db.GetAllProjects(ctx, userID)
 
+	query := r.URL.Query()
+
+	name := query.Get("name")
+	gitURL := query.Get("giturl")
+
+	limit := 10
+	offset := 0
+
+	if l := query.Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 {
+			limit = parsed
+		}
+	}
+
+	if o := query.Get("offset"); o != "" {
+		if parsed, err := strconv.Atoi(o); err == nil && parsed >= 0 {
+			offset = parsed
+		}
+	}
+
+	projects, err := h.db.GetAllProjects(ctx, userID, name, gitURL, limit, offset)
 	if err != nil {
 		http.Error(w, "error getting projects: "+err.Error(), http.StatusInternalServerError)
 		return

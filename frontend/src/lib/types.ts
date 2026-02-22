@@ -1,4 +1,4 @@
-import z from "zod";
+import z, { string } from "zod";
 import { loginSchema, signupSchema } from "./schema";
 
 export type SignupInput = z.infer<typeof signupSchema>;
@@ -35,3 +35,17 @@ export type LoginResponse = {
 } & AccessTokenDetails &
   RefreshTokenDetails &
   SessionDetails;
+
+export type Project = {
+  Base: {
+    id: string;
+    created_at: string;
+    updated_at: string;
+    deleted_at: string;
+  };
+  name: string;
+  git_url: string;
+  sub_domain: string;
+  custom_domain: string;
+  user_id: string;
+};
