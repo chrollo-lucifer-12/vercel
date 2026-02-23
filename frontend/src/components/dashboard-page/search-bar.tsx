@@ -8,22 +8,30 @@ import {
 } from "../ui/input-group";
 import CreateProject from "../create-project-dialog";
 import { Button } from "../ui/button";
+import { useProject } from "@/hooks/use-project";
+import { useState } from "react";
+import AllProjects from "./all-projects";
 
 const SearchBar = () => {
-  return (
-    <div className="flex flex-row py-3 gap-2">
-      <InputGroup className="max-w-full">
-        <InputGroupInput placeholder="Search..." />
-        <InputGroupAddon>
-          <FileSearchIcon />
-        </InputGroupAddon>
-      </InputGroup>
+  const [name, setName] = useState("");
+  const { data, isLoading } = useProject(name);
 
-      <CreateProject>
-        <Button size={"icon"} className="rounded-full">
-          <PlusIcon />
-        </Button>
-      </CreateProject>
+  return (
+    <div className="flex flex-col gap-10 py-3">
+      <div className="flex gap-2">
+        <InputGroup className="max-w-full">
+          <InputGroupInput placeholder="Search..." />
+          <InputGroupAddon>
+            <FileSearchIcon />
+          </InputGroupAddon>
+        </InputGroup>
+        <CreateProject>
+          <Button size={"icon"} className="rounded-full">
+            <PlusIcon />
+          </Button>
+        </CreateProject>
+      </div>
+      <AllProjects isLoading={isLoading} projects={data?.pages[0].projects!} />
     </div>
   );
 };

@@ -10,7 +10,7 @@ const envSchema = z.object({
   PROFILE_ENDPOINT: z.string().min(1),
   REFRESH_ENDPOINT: z.string().min(1),
   VERIFY_ENDPOINT: z.string().min(1),
-  GET_PROJECT_ENDPOINT: z.string().min(1),
+  ALL_PROJECT_ENDPOINT: z.string().min(1),
   CREATE_PROJECT_ENDPOINT: z.string().min(1),
 });
 

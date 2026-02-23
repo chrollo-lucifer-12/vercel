@@ -37,17 +37,15 @@ export type LoginResponse = {
   SessionDetails;
 
 export type Project = {
-  Base: {
-    id: string;
-    created_at: string;
-    updated_at: string;
-    deleted_at: string;
-  };
-  name: string;
-  git_url: string;
-  sub_domain: string;
-  custom_domain: string;
-  user_id: string;
+  ID: string;
+  CreatedAt: string;
+  UpdatedAt: string;
+  DeletedAt: string;
+  Name: string;
+  GitUrl: string;
+  SubDomain: string;
+  CustomDomain: string;
+  UserID: string;
 };
 
 export type CreateProjectResponse = {

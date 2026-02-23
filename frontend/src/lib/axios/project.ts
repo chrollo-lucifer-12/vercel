@@ -11,8 +11,8 @@ export const createProject = async (
     const res = await axiosInstance.post(
       serverEnv.CREATE_PROJECT_ENDPOINT,
       {
-        name,
-        git_url: gitUrl,
+        project_name: name,
+        github_url: gitUrl,
       },
       {
         headers: {
@@ -34,7 +34,7 @@ export const getProjects = async (
   name: string,
 ) => {
   try {
-    const res = await axiosInstance.get(serverEnv.GET_PROJECT_ENDPOINT, {
+    const res = await axiosInstance.get(serverEnv.ALL_PROJECT_ENDPOINT, {
       params: {
         limit,
         offset,
