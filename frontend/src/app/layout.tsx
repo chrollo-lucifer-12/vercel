@@ -4,6 +4,7 @@ import "./globals.css";
 import TanstackProvider from "@/providers/tanstack-provider";
 import { Toaster } from "@/components/ui/sonner";
 import TokenComponent from "@/components/token-component";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 const outfit = Outfit({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -34,7 +35,7 @@ export default function RootLayout({
       >
         <TanstackProvider>
           <TokenComponent />
-          {children}
+          <NuqsAdapter>{children}</NuqsAdapter>
         </TanstackProvider>
         <Toaster />
       </body>

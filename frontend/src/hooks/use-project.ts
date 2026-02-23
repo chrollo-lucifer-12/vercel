@@ -9,6 +9,7 @@ import {
   useInfiniteQuery,
   useMutation,
   useQueryClient,
+  useSuspenseInfiniteQuery,
 } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -38,7 +39,7 @@ export const useCreateProjectMutation = () => {
 
 export const useProject = (name: string, limit: number = 20) => {
   const queryClient = useQueryClient();
-  return useInfiniteQuery({
+  return useSuspenseInfiniteQuery({
     queryKey: ["projects", name],
 
     queryFn: async ({ pageParam = 0 }) => {
