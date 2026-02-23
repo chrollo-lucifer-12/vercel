@@ -1,6 +1,31 @@
 import { serverEnv } from "../env/server";
-import { Project } from "../types";
+import { CreateProjectResponse, Project } from "../types";
 import { axiosInstance } from "./axios";
+
+export const createProject = async (
+  accessToken: string,
+  name: string,
+  gitUrl: string,
+) => {
+  try {
+    const res = await axiosInstance.post(
+      serverEnv.CREATE_PROJECT_ENDPOINT,
+      {
+        name,
+        git_url: gitUrl,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+    return res.data as CreateProjectResponse;
+  } catch (err) {
+    console.error(err);
+    throw err instanceof Error ? err : new Error("Failed to create project");
+  }
+};
 
 export const getProjects = async (
   accessToken: string,

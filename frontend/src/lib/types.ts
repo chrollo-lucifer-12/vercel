@@ -49,3 +49,9 @@ export type Project = {
   custom_domain: string;
   user_id: string;
 };
+
+export type CreateProjectResponse = {
+  name: string;
+  id: string;
+  sub_domain: string;
+};

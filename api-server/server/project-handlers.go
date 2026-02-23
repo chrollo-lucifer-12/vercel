@@ -45,8 +45,9 @@ func (h *ServerClient) createProjectHandler(w http.ResponseWriter, r *http.Reque
 
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]string{
-		"name": project.Name,
-		"id":   project.ID.String(),
+		"name":       project.Name,
+		"id":         project.ID.String(),
+		"sub_domain": project.SubDomain,
 	})
 }
 

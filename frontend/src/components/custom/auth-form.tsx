@@ -23,7 +23,7 @@ type FieldConfig = {
 };
 
 type AuthFormProps = {
-  title: string;
+  title?: string;
   description?: string;
   fields: FieldConfig[];
   submitText: string;
@@ -32,6 +32,7 @@ type AuthFormProps = {
   isPending?: boolean;
   errors?: Record<string, string[] | undefined>;
   loadingText: string;
+  hideBorder?: boolean;
 };
 
 const AuthForm = ({
@@ -44,13 +45,17 @@ const AuthForm = ({
   footerText,
   isPending,
   loadingText,
+  hideBorder,
 }: AuthFormProps) => {
+  console.log(errors);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        {description && <CardDescription>{description}</CardDescription>}
-      </CardHeader>
+    <Card className={` ${hideBorder && "border-none outline-0 ring-0"} `}>
+      {title && (
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          {description && <CardDescription>{description}</CardDescription>}
+        </CardHeader>
+      )}
 
       <CardContent>
         <form

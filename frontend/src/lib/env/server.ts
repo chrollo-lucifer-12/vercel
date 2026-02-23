@@ -11,6 +11,7 @@ const envSchema = z.object({
   REFRESH_ENDPOINT: z.string().min(1),
   VERIFY_ENDPOINT: z.string().min(1),
   GET_PROJECT_ENDPOINT: z.string().min(1),
+  CREATE_PROJECT_ENDPOINT: z.string().min(1),
 });
 
 export const serverEnv = envSchema.parse(process.env);

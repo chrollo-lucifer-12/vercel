@@ -1,6 +1,7 @@
 import { signinAction, signupAction, verifyAction } from "@/actions/auth";
 import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import { User } from "./types";
+import { createProjectAction } from "@/actions/project";
 
 const SIGNUP_KEY = "signup";
 const SIGNIN_KEY = "signin";
@@ -9,6 +10,14 @@ export const TOKEN_KEY = ["auth", "token"];
 export const SESSION_KEY = ["session", "refresh"];
 const VERIFY_KEY = ["verify"];
 const PROJECT_KEY = ["projects"];
+export const CREATE_PROJECT_KEY = ["projects", "create"];
+
+export const createProjectMutationOptions = () => {
+  return mutationOptions({
+    mutationKey: CREATE_PROJECT_KEY,
+    throwOnError: false,
+  });
+};
 
 export const projectOptions = () => {
   return queryOptions({
