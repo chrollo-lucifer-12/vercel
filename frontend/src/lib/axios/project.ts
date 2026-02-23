@@ -1,3 +1,4 @@
+import axios from "axios";
 import { serverEnv } from "../env/server";
 import { CreateProjectResponse, Project } from "../types";
 import { axiosInstance } from "./axios";
@@ -44,6 +45,27 @@ export const getProjects = async (
         Authorization: `Bearer ${accessToken}`,
       },
     });
+    return res.data as Project[];
+  } catch (err) {
+    console.error(err);
+    throw err instanceof Error ? err : new Error("Failed to get projects");
+  }
+};
+
+export const getProjectsTest = async (
+  limit: number,
+  offset: number,
+  name?: string,
+) => {
+  try {
+    const res = await axios.get("http://localhost:4000", {
+      params: {
+        _start: offset,
+        _limit: limit,
+        ...(name ? { q: name } : {}), // search
+      },
+    });
+
     return res.data as Project[];
   } catch (err) {
     console.error(err);

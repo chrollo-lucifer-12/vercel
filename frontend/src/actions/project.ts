@@ -1,6 +1,10 @@
 "use server";
 
-import { createProject, getProjects } from "@/lib/axios/project";
+import {
+  createProject,
+  getProjects,
+  getProjectsTest,
+} from "@/lib/axios/project";
 import { createProjectSchema } from "@/lib/schema";
 
 export const projectAction = async (

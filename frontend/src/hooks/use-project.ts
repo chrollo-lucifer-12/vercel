@@ -23,7 +23,7 @@ export const useCreateProjectMutation = () => {
     mutationFn: async ({ formData }: { formData: FormData }) => {
       const tokenData = queryClient.getQueryData<TokenDetails>(TOKEN_KEY)!;
 
-      return createProjectAction(tokenData.access_token, formData);
+      return createProjectAction(tokenData?.access_token, formData);
     },
     onError: (error) => {
       console.error(error);
@@ -37,7 +37,7 @@ export const useCreateProjectMutation = () => {
   });
 };
 
-export const useProject = (name: string, limit: number = 20) => {
+export const useProject = (name: string, limit: number = 16) => {
   const queryClient = useQueryClient();
   return useSuspenseInfiniteQuery({
     queryKey: ["projects", name],
@@ -46,7 +46,7 @@ export const useProject = (name: string, limit: number = 20) => {
       const offset = pageParam * limit;
       const tokenData = queryClient.getQueryData(TOKEN_KEY) as TokenDetails;
       const res = await projectAction(
-        tokenData.access_token,
+        tokenData?.access_token,
         limit,
         offset,
         name,
@@ -56,6 +56,12 @@ export const useProject = (name: string, limit: number = 20) => {
     },
 
     initialPageParam: 0,
+
+    getPreviousPageParam: (lastPage, allPages) => {
+      if (lastPage.projects?.length < limit) return undefined;
+
+      return allPages.length;
+    },
 
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage.projects?.length < limit) return undefined;
