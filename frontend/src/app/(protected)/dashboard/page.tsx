@@ -1,4 +1,4 @@
-import AllProjects from "@/components/dashboard-page/all-projects";
+import AllProjectsClient from "@/components/dashboard-page/all-projects-client";
 import Navbar from "@/components/dashboard-page/navbar";
 import SearchBar from "@/components/dashboard-page/search-bar";
 import { cookies } from "next/headers";
@@ -21,7 +21,7 @@ const Dashboard = async (props: {
     <div className="w-full p-4">
       <Navbar />
       <SearchBar />
-      <AllProjects name={name} />
+      <AllProjectsClient name={name} />
     </div>
   );
 };

@@ -48,6 +48,7 @@ export const getProjects = async (
         },
       },
     );
+
     return res.data as Project[];
   } catch (err) {
     console.error(err);

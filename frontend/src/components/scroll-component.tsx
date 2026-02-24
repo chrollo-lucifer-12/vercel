@@ -18,7 +18,7 @@ const ScrollComponent = ({
   return (
     <div
       ref={sentinelRef}
-      className="col-span-full flex justify-center py-6 absolute bottom-2 -translate-x-1/2 left-1/2"
+      className="col-span-full flex justify-center py-6 absolute bottom-2 -translate-x-1/2 left-1/2 z-10"
     >
       <AnimatePresence mode="wait">
         {hasNextPage ? (

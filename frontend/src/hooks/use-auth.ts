@@ -90,52 +90,40 @@ export const useSignout = () => {
 };
 
 export const useSession = () => {
-  const queryClient = getQueryClient();
-
   return useQuery({
     ...tokenQueryOptions(),
     queryKey: TOKEN_QUERY_KEY,
     throwOnError: false,
     queryFn: async (): Promise<TokenDetails | null> => {
-      try {
-        const res = await fetch(
-          `${clientEnv.NEXT_PUBLIC_BASE_URL}/api/refresh`,
-          {
-            method: "GET",
-            credentials: "include",
-          },
-        );
+      const res = await fetch(`${clientEnv.NEXT_PUBLIC_BASE_URL}/api/refresh`, {
+        method: "GET",
+        credentials: "include",
+      });
 
-        const data = await res.json();
-
-        if (data.success) {
-          await queryClient.invalidateQueries({ queryKey: TOKEN_QUERY_KEY });
-
-          return data;
-        }
-      } catch (err) {
-        console.error("Failed to refresh session:", err);
+      if (!res.ok) {
+        return null;
       }
-      return null;
+
+      const text = await res.text();
+      if (!text) return null;
+
+      const data = JSON.parse(text);
+
+      return data.success ? data.access_token : null;
     },
   });
 };
 
 export const useProfile = () => {
   const { data } = useSession();
-  const queryClient = getQueryClient();
-
   const sessionData = data as TokenDetails;
 
   return useQuery({
     ...profileQueryOptions(),
-    queryKey: USER_QUERY_KEY,
+    queryKey: ["profile"],
     queryFn: async (): Promise<User | null> => {
-      if (!sessionData?.access_token) return null;
-
       try {
-        const res = await profile(sessionData.access_token);
-        await queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
+        const res = await profile(sessionData?.access_token!);
         return res;
       } catch (err) {
         console.error("Failed to fetch profile:", err);

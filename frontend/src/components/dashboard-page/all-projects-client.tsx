@@ -4,6 +4,8 @@ import { useProject } from "@/hooks/use-project";
 import ProjectCard from "../project-card";
 import ScrollComponent from "../scroll-component";
 import { useCallback, useEffect, useRef } from "react";
+import ProjectEmpty from "../project-empty";
+import { Skeleton } from "../ui/skeleton";
 
 const AllProjectsClient = ({ name }: { name: string }) => {
   const rootRef = useRef(null);
@@ -47,25 +49,43 @@ const AllProjectsClient = ({ name }: { name: string }) => {
   }, [observerCallback]);
 
   const projects = data.pages.flatMap((page) => page ?? []);
+
+  if (isFetching) {
+    return (
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3
+                overflow-y-auto max-h-[600px] p-1"
+      >
+        {Array.from({ length: 10 }).map((_, i) => {
+          return <Skeleton key={i} className="h-20" />;
+        })}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col mt-10 gap-4">
       <p>Showing {projects?.length} projects</p>
 
-      <div
-        ref={rootRef}
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3
+      {projects.length === 0 ? (
+        <ProjectEmpty />
+      ) : (
+        <div
+          ref={rootRef}
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3
                       overflow-y-auto max-h-[600px] p-1"
-      >
-        {projects.map((project) => (
-          <ProjectCard key={project.ID} project={project} />
-        ))}
+        >
+          {projects.map((project) => (
+            <ProjectCard key={project.ID} project={project} />
+          ))}
 
-        <ScrollComponent
-          hasNextPage={hasNextPage}
-          isFetching={isFetching}
-          sentinelRef={elementRef}
-        />
-      </div>
+          <ScrollComponent
+            hasNextPage={hasNextPage}
+            isFetching={isFetching}
+            sentinelRef={elementRef}
+          />
+        </div>
+      )}
     </div>
   );
 };

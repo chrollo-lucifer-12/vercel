@@ -1,14 +1,17 @@
 import { createProjectAction } from "@/actions/project";
 import { getProjects } from "@/lib/axios/project";
 import { CREATE_PROJECT_KEY } from "@/lib/query-options";
-import { getQueryClient } from "@/lib/query-provider";
-import { useMutation, useSuspenseInfiniteQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useSuspenseInfiniteQuery,
+} from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useSession } from "./use-auth";
 import { TokenDetails } from "@/lib/types";
 
-const PROJECTS_QUERY_KEY = (name: string) => ["projects", name];
+const PROJECTS_QUERY_KEY = (name: string[]) => ["projects", ...name];
 
 export const useCreateProjectMutation = () => {
   const router = useRouter();
@@ -42,27 +45,34 @@ export const useProject = (
   limit: number = 16,
   initialData?: any,
 ) => {
-  const queryClient = getQueryClient();
   const { data } = useSession();
 
   const tokenData = data as TokenDetails;
 
-  return useSuspenseInfiniteQuery({
-    queryKey: PROJECTS_QUERY_KEY(name),
-
+  return useInfiniteQuery({
+    queryKey: PROJECTS_QUERY_KEY([name]),
+    enabled: !!tokenData?.access_token,
     initialData,
     queryFn: async ({ pageParam = 0 }) => {
+      if (!tokenData?.access_token) throw new Promise(() => {});
       const offset = pageParam * limit;
 
-      return getProjects(tokenData?.access_token!, limit, offset, name);
+      const res = await getProjects(
+        tokenData?.access_token!,
+        limit,
+        offset,
+        name,
+      );
+
+      return res;
     },
     initialPageParam: 0,
     getPreviousPageParam: (lastPage, allPages) => {
-      if (lastPage.projects?.length < limit) return undefined;
+      if (lastPage?.length < limit) return undefined;
       return allPages.length ?? 0;
     },
     getNextPageParam: (lastPage, allPages) => {
-      if (lastPage.projects?.length < limit) return undefined;
+      if (lastPage?.length < limit) return undefined;
       return allPages.length ?? 0;
     },
   });

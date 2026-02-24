@@ -66,7 +66,7 @@ func (s *ServerClient) setupHTTP() {
 
 	s.server = &http.Server{
 		Addr:     ":9000",
-		Handler:  mux,
+		Handler:  enableCORS(mux),
 		ErrorLog: logger,
 	}
 }

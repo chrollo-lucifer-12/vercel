@@ -12,6 +12,7 @@ export const profile = async (accessToken: string) => {
         },
       },
     );
+    console.log(res.data);
     return res.data as User;
   } catch (err) {
     console.error(err);

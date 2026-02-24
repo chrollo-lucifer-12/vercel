@@ -18,8 +18,6 @@ const UserAvatar = () => {
   const { data, isLoading } = useProfile();
   const { mutate, isPending } = useSignout();
 
-  const { data: session } = useSession();
-  if (!session) return null;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger>

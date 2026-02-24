@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import UserAvatar from "../user-avatar";
+import { Suspense } from "react";
 
 const Navbar = () => {
   return (
