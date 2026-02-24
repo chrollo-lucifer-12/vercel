@@ -7,7 +7,7 @@ export type LoginInput = z.infer<typeof loginSchema>;
 export type User = {
   name: string;
   email: string;
-};
+} | null;
 
 export type AccessTokenDetails = {
   access_token: string;
@@ -23,7 +23,7 @@ export type SessionDetails = {
   session_id: string;
 };
 
-export type TokenDetails = AccessTokenDetails & SessionDetails;
+export type TokenDetails = (AccessTokenDetails & SessionDetails) | null;
 
 export type AuthUserDetails = {
   User: User;

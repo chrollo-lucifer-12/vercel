@@ -9,7 +9,11 @@ const AllProjectsClient = ({ name }: { name: string }) => {
   const rootRef = useRef(null);
   const elementRef = useRef<HTMLDivElement | null>(null);
 
-  const { data, hasNextPage, fetchNextPage, isFetching } = useProject(name);
+  const { data, hasNextPage, fetchNextPage, isFetching } = useProject(
+    name,
+    16,
+    { pages: [], pageParams: [] },
+  );
 
   const observerCallback = useCallback(
     (entries: IntersectionObserverEntry[]) => {
@@ -42,10 +46,10 @@ const AllProjectsClient = ({ name }: { name: string }) => {
     };
   }, [observerCallback]);
 
-  const projects = data.pages.flatMap((page) => page.projects ?? []);
+  const projects = data.pages.flatMap((page) => page ?? []);
   return (
     <div className="flex flex-col mt-10 gap-4">
-      <p>Showing {projects.length} projects</p>
+      <p>Showing {projects?.length} projects</p>
 
       <div
         ref={rootRef}

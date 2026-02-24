@@ -1,15 +1,17 @@
-import "server-only";
 import { axiosInstance } from "./axios";
-import { serverEnv } from "../env/server";
+import { clientEnv } from "../env/client";
 import { User } from "../types";
 
 export const profile = async (accessToken: string) => {
   try {
-    const res = await axiosInstance.get(serverEnv.PROFILE_ENDPOINT, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+    const res = await axiosInstance.get(
+      clientEnv.NEXT_PUBLIC_PROFILE_ENDPOINT,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    });
+    );
     return res.data as User;
   } catch (err) {
     console.error(err);

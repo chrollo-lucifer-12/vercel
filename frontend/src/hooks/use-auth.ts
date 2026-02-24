@@ -1,25 +1,21 @@
-import { logoutAction, refreshAction } from "@/actions/auth";
-import { profileAction } from "@/actions/user";
+import { logoutAction } from "@/actions/auth";
 import {
   signinMutationOptions,
   signupMutationOptions,
-  TOKEN_KEY,
-  USER_KEY,
   profileQueryOptions,
-  SESSION_KEY,
   tokenQueryOptions,
   verifyMutationOptions,
 } from "@/lib/query-options";
-import {
-  AccessTokenDetails,
-  AuthUserDetails,
-  SessionDetails,
-  TokenDetails,
-  User,
-} from "@/lib/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { TokenDetails, User } from "@/lib/types";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { getQueryClient } from "@/lib/query-provider";
+import { profile } from "@/lib/axios/user";
+import { clientEnv } from "@/lib/env/client";
+
+const TOKEN_QUERY_KEY = ["token"];
+const USER_QUERY_KEY = ["user"];
 
 export const useVerify = () => {
   return useMutation({
@@ -40,38 +36,29 @@ export const useSignUp = () => {
       console.log(error);
       toast.error(error.message);
     },
-    onSuccess: (data) => {
-      if (data.success) {
-        toast.success(
-          "Sign up successful check your email for verification link.",
-        );
-        router.push("/signin");
-      }
+    onSuccess: () => {
+      toast.success(
+        "Sign up successful! Check your email for verification link.",
+      );
+      router.push("/signin");
     },
   });
 };
 
 export const useSignIn = () => {
   const router = useRouter();
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
+
   return useMutation({
     ...signinMutationOptions(),
     onError: (error) => {
       toast.error(error.message);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       if (data.success) {
-        const authDetails = data.data as AuthUserDetails;
-        queryClient.setQueryData(USER_KEY, {
-          email: authDetails.User.email,
-          name: authDetails.User.name,
-        } as User);
-        queryClient.setQueryData(TOKEN_KEY, {
-          access_token: authDetails.access_token,
-          access_token_expires_at: authDetails.access_token_expires_at,
-          session_id: authDetails.session_id,
-        } as TokenDetails);
         toast.success("Login successful");
+        await queryClient.invalidateQueries({ queryKey: TOKEN_QUERY_KEY });
+        await queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
         router.push("/");
       }
     },
@@ -79,46 +66,55 @@ export const useSignIn = () => {
 };
 
 export const useSignout = () => {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
   const router = useRouter();
+  const { data } = useSession();
+  const sessionData = data as TokenDetails;
 
   return useMutation({
     mutationFn: async () => {
-      const authData = queryClient.getQueryData(
-        TOKEN_KEY,
-      ) as AccessTokenDetails & SessionDetails;
-      const sessionId = authData.session_id;
+      if (!sessionData?.session_id) throw new Error("No session ID");
 
-      if (!sessionId) throw new Error("No session ID");
-
-      const result = await logoutAction(sessionId, authData.access_token);
-      if (!result.success) {
-        console.log(result.error);
-        throw new Error(result.error);
-      }
+      const result = await logoutAction(
+        sessionData.session_id,
+        sessionData.access_token,
+      );
+      if (!result.success) throw new Error(result.error);
     },
-    onSuccess: () => {
-      queryClient.cancelQueries();
-      queryClient.removeQueries();
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: TOKEN_QUERY_KEY });
+      await queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
       router.push("/");
     },
   });
 };
 
 export const useSession = () => {
-  const queryClient = useQueryClient();
+  const queryClient = getQueryClient();
+
   return useQuery({
     ...tokenQueryOptions(),
-    queryFn: async () => {
-      const res = await refreshAction();
-      if (res.success) {
-        queryClient.setQueryData(TOKEN_KEY, {
-          access_token: res.access_token?.access_token,
-          access_token_expires_at: res.access_token?.access_token_expires_at,
-          session_id: res.access_token?.session_id,
-        } as TokenDetails);
-        return res.access_token;
-      } else {
+    queryKey: TOKEN_QUERY_KEY,
+    throwOnError: false,
+    queryFn: async (): Promise<TokenDetails | null> => {
+      try {
+        const res = await fetch(
+          `${clientEnv.NEXT_PUBLIC_BASE_URL}/api/refresh`,
+          {
+            method: "GET",
+            credentials: "include",
+          },
+        );
+
+        const data = await res.json();
+
+        if (data.success) {
+          await queryClient.invalidateQueries({ queryKey: TOKEN_QUERY_KEY });
+
+          return data;
+        }
+      } catch (err) {
+        console.error("Failed to refresh session:", err);
       }
       return null;
     },
@@ -126,18 +122,26 @@ export const useSession = () => {
 };
 
 export const useProfile = () => {
-  const queryClient = useQueryClient();
+  const { data } = useSession();
+  const queryClient = getQueryClient();
+
+  const sessionData = data as TokenDetails;
 
   return useQuery({
     ...profileQueryOptions(),
-    queryFn: async (): Promise<User> => {
-      const tokenData = queryClient.getQueryData(TOKEN_KEY) as TokenDetails;
-      const res = await profileAction(tokenData.access_token);
-      if (!res.success || !res.user) {
-        throw new Error(res.error ?? "Failed to fetch profile");
+    queryKey: USER_QUERY_KEY,
+    queryFn: async (): Promise<User | null> => {
+      if (!sessionData?.access_token) return null;
+
+      try {
+        const res = await profile(sessionData.access_token);
+        await queryClient.invalidateQueries({ queryKey: USER_QUERY_KEY });
+        return res;
+      } catch (err) {
+        console.error("Failed to fetch profile:", err);
+        return null;
       }
-      return res.user;
     },
-    initialData: queryClient.getQueryData<User>(USER_KEY),
+    enabled: !!sessionData?.access_token,
   });
 };

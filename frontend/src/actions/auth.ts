@@ -2,7 +2,7 @@
 
 import { logout, refresh, signin, signup, verify } from "@/lib/axios/auth";
 import { loginSchema, signupSchema } from "@/lib/schema";
-import { RefreshTokenDetails } from "@/lib/types";
+import { RefreshTokenDetails, TokenDetails } from "@/lib/types";
 import { cookies } from "next/headers";
 import z from "zod";
 
@@ -114,31 +114,6 @@ export const signinAction = async (formData: FormData) => {
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to sign in",
-    };
-  }
-};
-
-export const refreshAction = async () => {
-  try {
-    const cookieStore = await cookies();
-    const refreshTokenCookie = cookieStore.get("refresh_token")?.value;
-    console.log(refreshTokenCookie);
-    if (refreshTokenCookie) {
-      const parseCookie = JSON.parse(refreshTokenCookie) as RefreshTokenDetails;
-      const res = await refresh(parseCookie.refresh_token);
-      return {
-        success: true,
-        access_token: res,
-      };
-    }
-
-    return {
-      success: false,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to refresh",
     };
   }
 };

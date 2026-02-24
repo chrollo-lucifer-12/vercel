@@ -1,5 +1,5 @@
 import axios from "axios";
-import { serverEnv } from "../env/server";
+import { clientEnv } from "../env/client";
 import { CreateProjectResponse, Project } from "../types";
 import { axiosInstance } from "./axios";
 
@@ -10,7 +10,7 @@ export const createProject = async (
 ) => {
   try {
     const res = await axiosInstance.post(
-      serverEnv.CREATE_PROJECT_ENDPOINT,
+      clientEnv.NEXT_PUBLIC_CREATE_PROJECT_ENDPOINT,
       {
         project_name: name,
         github_url: gitUrl,
@@ -35,16 +35,19 @@ export const getProjects = async (
   name: string,
 ) => {
   try {
-    const res = await axiosInstance.get(serverEnv.ALL_PROJECT_ENDPOINT, {
-      params: {
-        limit,
-        offset,
-        name,
+    const res = await axiosInstance.get(
+      clientEnv.NEXT_PUBLIC_ALL_PROJECT_ENDPOINT,
+      {
+        params: {
+          limit,
+          offset,
+          name,
+        },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    );
     return res.data as Project[];
   } catch (err) {
     console.error(err);

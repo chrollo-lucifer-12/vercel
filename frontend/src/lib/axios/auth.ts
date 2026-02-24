@@ -1,4 +1,3 @@
-import "server-only";
 import { axiosInstance } from "./axios";
 import {
   AccessTokenDetails,
@@ -8,13 +7,16 @@ import {
   SignupInput,
   TokenDetails,
 } from "../types";
-import { serverEnv } from "../env/server";
+import { clientEnv } from "../env/client";
 
 export const refresh = async (refreshToken: string) => {
   try {
-    const res = await axiosInstance.post(serverEnv.REFRESH_ENDPOINT, {
-      refresh_token: refreshToken,
-    });
+    const res = await axiosInstance.post(
+      clientEnv.NEXT_PUBLIC_REFRESH_ENDPOINT,
+      {
+        refresh_token: refreshToken,
+      },
+    );
     return res.data as TokenDetails;
   } catch (err) {
     console.error(err);
@@ -24,7 +26,7 @@ export const refresh = async (refreshToken: string) => {
 
 export const signup = async (data: SignupInput) => {
   try {
-    await axiosInstance.post(serverEnv.SIGNUP_ENDPOINT, data);
+    await axiosInstance.post(clientEnv.NEXT_PUBLIC_SIGNUP_ENDPOINT, data);
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to sign up");
@@ -33,7 +35,10 @@ export const signup = async (data: SignupInput) => {
 
 export const signin = async (data: LoginInput) => {
   try {
-    const res = await axiosInstance.post(serverEnv.LOGIN_ENDPOINT, data);
+    const res = await axiosInstance.post(
+      clientEnv.NEXT_PUBLIC_LOGIN_ENDPOINT,
+      data,
+    );
     const {
       User,
       access_token,
@@ -59,11 +64,14 @@ export const signin = async (data: LoginInput) => {
 
 export const logout = async (sessionId: string, accessToken: string) => {
   try {
-    await axiosInstance.delete(`${serverEnv.LOGOUT_ENDPOINT}/${sessionId}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
+    await axiosInstance.delete(
+      `${clientEnv.NEXT_PUBLIC_LOGOUT_ENDPOINT}/${sessionId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    });
+    );
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to sign in");
@@ -72,7 +80,9 @@ export const logout = async (sessionId: string, accessToken: string) => {
 
 export const verify = async (email: string) => {
   try {
-    await axiosInstance.post(`${serverEnv.VERIFY_ENDPOINT}`, { email });
+    await axiosInstance.post(`${clientEnv.NEXT_PUBLIC_VERIFY_ENDPOINT}`, {
+      email,
+    });
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to verify");

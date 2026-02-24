@@ -1,31 +1,7 @@
 "use server";
 
-import {
-  createProject,
-  getProjects,
-  getProjectsTest,
-} from "@/lib/axios/project";
+import { createProject } from "@/lib/axios/project";
 import { createProjectSchema } from "@/lib/schema";
-
-export const projectAction = async (
-  accessToken: string,
-  limit: number,
-  offset: number,
-  name: string,
-) => {
-  try {
-    const data = await getProjects(accessToken, limit, offset, name);
-    return {
-      success: true,
-      projects: data,
-    };
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to fetch profile",
-    };
-  }
-};
 
 export const createProjectAction = async (
   accessToken: string,

@@ -1,7 +1,6 @@
 import { signinAction, signupAction, verifyAction } from "@/actions/auth";
 import { mutationOptions, queryOptions } from "@tanstack/react-query";
 import { User } from "./types";
-import { createProjectAction } from "@/actions/project";
 
 const SIGNUP_KEY = "signup";
 const SIGNIN_KEY = "signin";
@@ -57,7 +56,7 @@ export const profileQueryOptions = () => {
 export const tokenQueryOptions = () => {
   return queryOptions({
     queryKey: TOKEN_KEY,
-    refetchInterval: 1000 * 60 * 1,
+    refetchInterval: 1000 * 60 * 5,
     staleTime: 1000 * 60 * 12,
     refetchOnWindowFocus: false,
     refetchIntervalInBackground: true,
