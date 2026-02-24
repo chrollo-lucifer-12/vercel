@@ -7,7 +7,7 @@ import {
   verifyMutationOptions,
 } from "@/lib/query-options";
 import { TokenDetails, User } from "@/lib/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { getQueryClient } from "@/lib/query-provider";
@@ -90,10 +90,10 @@ export const useSignout = () => {
 };
 
 export const useSession = () => {
-  return useQuery({
+  return useSuspenseQuery({
     ...tokenQueryOptions(),
     queryKey: TOKEN_QUERY_KEY,
-    throwOnError: false,
+
     queryFn: async (): Promise<TokenDetails | null> => {
       const res = await fetch(`${clientEnv.NEXT_PUBLIC_BASE_URL}/api/refresh`, {
         method: "GET",

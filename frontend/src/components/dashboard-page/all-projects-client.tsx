@@ -7,23 +7,39 @@ import { useCallback, useEffect, useRef } from "react";
 import ProjectEmpty from "../project-empty";
 import { Skeleton } from "../ui/skeleton";
 
+const SkeletonGrid = () => {
+  return (
+    <div
+      className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3
+              overflow-y-auto max-h-[600px] p-1"
+    >
+      {Array.from({ length: 10 }).map((_, i) => {
+        return <Skeleton key={i} />;
+      })}
+    </div>
+  );
+};
+
 const AllProjectsClient = ({ name }: { name: string }) => {
   const rootRef = useRef(null);
   const elementRef = useRef<HTMLDivElement | null>(null);
 
-  const { data, hasNextPage, fetchNextPage, isFetching } = useProject(
-    name,
-    16,
-    { pages: [], pageParams: [] },
-  );
+  const {
+    data,
+    hasNextPage,
+    fetchNextPage,
+    isFetching,
+    isFetchingNextPage,
+    isPending,
+  } = useProject(name, 12, { pages: [], pageParams: [] });
 
   const observerCallback = useCallback(
     (entries: IntersectionObserverEntry[]) => {
-      if (entries[0].isIntersecting && !isFetching) {
+      if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
         fetchNextPage();
       }
     },
-    [isFetching, fetchNextPage],
+    [isFetchingNextPage, fetchNextPage, hasNextPage],
   );
 
   useEffect(() => {
@@ -31,10 +47,8 @@ const AllProjectsClient = ({ name }: { name: string }) => {
     if (rootRef?.current) {
       const options = {
         root: rootRef.current,
-        rootMargin: "0px",
-        scrollMargin: "50px",
-        threshold: 1.0,
-        delay: 2000,
+        rootMargin: "100px",
+        threshold: 0.1,
       };
       observer = new IntersectionObserver(observerCallback, options);
       if (elementRef.current) {
@@ -49,43 +63,34 @@ const AllProjectsClient = ({ name }: { name: string }) => {
   }, [observerCallback]);
 
   const projects = data.pages.flatMap((page) => page ?? []);
+  if (isPending) {
+    return <SkeletonGrid />;
+  }
 
-  if (isFetching) {
-    return (
-      <div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3
-                overflow-y-auto max-h-[600px] p-1"
-      >
-        {Array.from({ length: 10 }).map((_, i) => {
-          return <Skeleton key={i} className="h-20" />;
-        })}
-      </div>
-    );
+  if (projects.length === 0) {
+    return <ProjectEmpty />;
   }
 
   return (
     <div className="flex flex-col mt-10 gap-4">
       <p>Showing {projects?.length} projects</p>
 
-      {projects.length === 0 ? (
-        <ProjectEmpty />
-      ) : (
-        <div
-          ref={rootRef}
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3
-                      overflow-y-auto max-h-[600px] p-1"
-        >
-          {projects.map((project) => (
-            <ProjectCard key={project.ID} project={project} />
-          ))}
+      <div
+        ref={rootRef}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3
+                      overflow-y-auto max-h-[550px] p-1"
+      >
+        {projects.map((project) => (
+          <ProjectCard key={project.ID} project={project} />
+        ))}
 
-          <ScrollComponent
-            hasNextPage={hasNextPage}
-            isFetching={isFetching}
-            sentinelRef={elementRef}
-          />
-        </div>
-      )}
+        <ScrollComponent
+          hasNextPage={hasNextPage}
+          isFetching={isFetchingNextPage}
+        />
+
+        <div ref={elementRef} className="h-10 col-span-full" />
+      </div>
     </div>
   );
 };

@@ -42,7 +42,7 @@ export const useCreateProjectMutation = () => {
 
 export const useProject = (
   name: string,
-  limit: number = 16,
+  limit: number = 12,
   initialData?: any,
 ) => {
   const { data } = useSession();
@@ -52,7 +52,9 @@ export const useProject = (
   return useInfiniteQuery({
     queryKey: PROJECTS_QUERY_KEY([name]),
     enabled: !!tokenData?.access_token,
+    refetchOnWindowFocus: false,
     initialData,
+
     queryFn: async ({ pageParam = 0 }) => {
       if (!tokenData?.access_token) throw new Promise(() => {});
       const offset = pageParam * limit;
@@ -67,6 +69,7 @@ export const useProject = (
       return res;
     },
     initialPageParam: 0,
+
     getPreviousPageParam: (lastPage, allPages) => {
       if (lastPage?.length < limit) return undefined;
       return allPages.length ?? 0;
