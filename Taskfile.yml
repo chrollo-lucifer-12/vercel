@@ -1,0 +1,61 @@
+version: "3"
+
+dotenv: [".env"]
+
+tasks:
+  i:f:
+    dir: ./frontend
+    cmds:
+      - yarn add {{.CLI_ARGS}}
+
+  i:a:
+    dir: ./api-server
+    cmds:
+      - go get {{.CLI_ARGS}}
+
+  i:s:
+    dir: ./shared
+    cmds:
+      - go get {{.CLI_ARGS}}
+
+  i:r:
+    dir: ./request-handler
+    cmds:
+      - go get {{.CLI_ARGS}}
+
+  i:
+    cmds:
+      - cd ./frontend && yarn install
+      - cd ./api-server && go mod download
+      - cd ./request-handler && go mod download
+      - cd migrate && go mod download
+      - cd shared && go mod download
+      - cd migrate && go run .
+    parallel: true
+    output: prefixed
+
+  ag:
+    cmds:
+      - git add .
+      - git commit -m "{{index .CLI_ARGS 0}}"
+      - git push
+    silent: false
+
+  as:
+    dir: ./api-server
+    cmds:
+      - go run .
+
+  fr:
+    dir: ./frontend
+    cmds:
+      - yarn install
+      - yarn dev
+
+  dev:
+    desc: Run api + frontend together (fail fast)
+    deps:
+      - as
+      - fr
+    parallel: true
+    output: prefixed
