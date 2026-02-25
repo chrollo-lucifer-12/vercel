@@ -74,6 +74,16 @@ export const deleteProject = async (accessToken: string, projectId: string) => {
 
 export const getProject = async (accessToken: string, slug: string) => {
   try {
+    const res = await axiosInstance.get(
+      `${clientEnv.NEXT_PUBLIC_GET_PROJECT}/${slug}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+    console.log(res.data);
+    return res.data;
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to get project");

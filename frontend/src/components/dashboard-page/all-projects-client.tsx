@@ -1,6 +1,6 @@
 "use client";
 
-import { useProject } from "@/hooks/use-project";
+import { useSearchProjects } from "@/hooks/use-project";
 import ProjectCard from "../project-card";
 import ScrollComponent from "../scroll-component";
 import { useCallback, useEffect, useRef } from "react";
@@ -31,7 +31,7 @@ const AllProjectsClient = ({ name }: { name: string }) => {
     isFetching,
     isFetchingNextPage,
     isPending,
-  } = useProject(name, 12, { pages: [], pageParams: [] });
+  } = useSearchProjects(name, 12, { pages: [], pageParams: [] });
 
   const observerCallback = useCallback(
     (entries: IntersectionObserverEntry[]) => {

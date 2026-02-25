@@ -18,11 +18,10 @@ const Dashboard = async (props: {
   const name = searchParams?.name || "";
 
   return (
-    <div className="w-full p-4">
-      <Navbar />
+    <>
       <SearchBar />
       <AllProjectsClient name={name} />
-    </div>
+    </>
   );
 };
 export default Dashboard;

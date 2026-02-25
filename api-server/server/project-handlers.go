@@ -91,14 +91,15 @@ func (h *ServerClient) getAllProjectsHandler(w http.ResponseWriter, r *http.Requ
 }
 
 func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	project, _, err := verifyDeployment(r.URL.Path, r, h.db)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/project/")
+	if path == "" {
+		http.Error(w, "project id required", http.StatusBadRequest)
+		return
 	}
 
-	projectRes, err := h.db.GetProjectByID(ctx, project.ID)
+	ctx := r.Context()
+
+	projectRes, err := h.db.GetProjectBySlug(ctx, path)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

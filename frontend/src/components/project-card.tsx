@@ -16,17 +16,18 @@ import {
   AlertDialogTrigger,
 } from "./ui/alert-dialog";
 import { useDeleteProjectMutation } from "@/hooks/use-project";
+import { Spinner } from "./ui/spinner";
 
 const ProjectCard = ({ project, name }: { project: Project; name: string }) => {
   const router = useRouter();
-  const { mutate } = useDeleteProjectMutation(name);
+  const { mutate, isPending } = useDeleteProjectMutation(name);
   return (
     <Card
-      // onClick={() => {
-      //   router.push(`/project/${project.SubDomain}`);
-      // }}
+      onClick={() => {
+        router.push(`/project/${project.SubDomain}`);
+      }}
       key={project.ID}
-      className="cursor-pointer hover:bg-[#E6F7F5] hover:text-[#26b3a6] border-2 border-transparent hover:border-[#1A8A81] transition duration-150"
+      className={`cursor-pointer ${isPending ? "border-orange-500" : ""} hover:bg-[#E6F7F5] hover:text-[#26b3a6] border-2 border-transparent hover:border-[#1A8A81] transition duration-150`}
     >
       <CardHeader>
         <div className="flex flex-row items-center gap-2 justify-between">
@@ -47,8 +48,8 @@ const ProjectCard = ({ project, name }: { project: Project; name: string }) => {
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant={"destructive"}>
-                <TrashIcon size={10} />
+              <Button variant={"destructive"} disabled={isPending}>
+                {!isPending ? <TrashIcon size={10} /> : <Spinner />}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>

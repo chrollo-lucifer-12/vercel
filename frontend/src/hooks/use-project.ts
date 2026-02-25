@@ -1,9 +1,10 @@
 import { createProjectAction } from "@/actions/project";
-import { deleteProject, getProjects } from "@/lib/axios/project";
+import { deleteProject, getProject, getProjects } from "@/lib/axios/project";
 import { CREATE_PROJECT_KEY } from "@/lib/query-options";
 import {
   useInfiniteQuery,
   useMutation,
+  useQuery,
   useSuspenseInfiniteQuery,
 } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
@@ -62,7 +63,23 @@ export const useCreateProjectMutation = () => {
   });
 };
 
-export const useProject = (
+export const useProject = (slug: string) => {
+  const { data } = useSession();
+  const tokenData = data as TokenDetails;
+
+  return useQuery({
+    queryKey: ["project", slug],
+    enabled: !!tokenData?.access_token,
+    refetchOnWindowFocus: false,
+
+    queryFn: async () => {
+      const res = await getProject(tokenData?.access_token!, slug);
+      return res;
+    },
+  });
+};
+
+export const useSearchProjects = (
   name: string,
   limit: number = 12,
   initialData?: any,

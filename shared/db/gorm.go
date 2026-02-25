@@ -136,6 +136,10 @@ func (d *DB) GetProjectByID(ctx context.Context, id uuid.UUID) (Project, error) 
 	return first[Project](ctx, d.db, "id = ?", id)
 }
 
+func (d *DB) GetProjectBySlug(ctx context.Context, slug string) (Project, error) {
+	return first[Project](ctx, d.db, "sub_domain = ?", slug)
+}
+
 func (d *DB) GetAllProjects(
 	ctx context.Context,
 	userID uuid.UUID,
