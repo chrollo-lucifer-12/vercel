@@ -44,13 +44,28 @@ tasks:
   as:
     dir: ./api-server
     cmds:
+      - gum style --foreground 212 --bold "Starting API..."
       - go run .
+    label: API
 
   fr:
     dir: ./frontend
     cmds:
-      - yarn install
+      - gum style --foreground 45 --bold "Starting WEB..."
       - yarn dev
+    label: WEB
+
+  migrate:
+    dir: ./migrate
+    cmds:
+      - go run .
+
+  rh:
+    dir: ./request-handler
+    cmds:
+      - gum style --foreground 100 --bold "Starting WEB..."
+      - go run .
+    label: RH
 
   dev:
     desc: Run api + frontend together (fail fast)
