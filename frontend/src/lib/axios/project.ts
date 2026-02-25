@@ -56,23 +56,26 @@ export const getProjects = async (
   }
 };
 
-export const getProjectsTest = async (
-  limit: number,
-  offset: number,
-  name?: string,
-) => {
+export const deleteProject = async (accessToken: string, projectId: string) => {
   try {
-    const res = await axios.get("http://localhost:4000", {
-      params: {
-        _start: offset,
-        _limit: limit,
-        ...(name ? { q: name } : {}), // search
+    await axiosInstance.delete(
+      `${clientEnv.NEXT_PUBLIC_DELETE_PROJECT}/${projectId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
       },
-    });
-
-    return res.data as Project[];
+    );
   } catch (err) {
     console.error(err);
-    throw err instanceof Error ? err : new Error("Failed to get projects");
+    throw err instanceof Error ? err : new Error("Failed to delete project");
+  }
+};
+
+export const getProject = async (accessToken: string, slug: string) => {
+  try {
+  } catch (err) {
+    console.error(err);
+    throw err instanceof Error ? err : new Error("Failed to get project");
   }
 };

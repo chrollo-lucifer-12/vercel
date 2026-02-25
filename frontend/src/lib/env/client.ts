@@ -11,6 +11,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_ALL_PROJECT_ENDPOINT: z.string().min(1),
   NEXT_PUBLIC_CREATE_PROJECT_ENDPOINT: z.string().min(1),
   NEXT_PUBLIC_BASE_URL: z.string().min(1),
+  NEXT_PUBLIC_DELETE_PROJECT: z.string().min(1),
 });
 
 export const clientEnv = envSchema.parse({
@@ -26,4 +27,5 @@ export const clientEnv = envSchema.parse({
   NEXT_PUBLIC_CREATE_PROJECT_ENDPOINT:
     process.env.NEXT_PUBLIC_CREATE_PROJECT_ENDPOINT,
   NEXT_PUBLIC_BASE_URL: process.env.NEXT_PUBLIC_BASE_URL,
+  NEXT_PUBLIC_DELETE_PROJECT: process.env.NEXT_PUBLIC_DELETE_PROJECT,
 });

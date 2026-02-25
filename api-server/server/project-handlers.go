@@ -5,10 +5,12 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
+	"github.com/google/uuid"
 	"github.com/sio/coolname"
 )
 
@@ -109,14 +111,21 @@ func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *ServerClient) deleteProjectHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	project, _, err := verifyDeployment(r.URL.Path, r, h.db)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/project/delete/")
+	if path == "" {
+		http.Error(w, "project id required", http.StatusBadRequest)
+		return
 	}
 
-	err = h.db.DeleteProject(ctx, project.ID)
+	projectID, err := uuid.Parse(path)
+	if err != nil {
+		http.Error(w, "invalid project id", http.StatusBadRequest)
+		return
+	}
+
+	ctx := r.Context()
+
+	err = h.db.DeleteProject(ctx, projectID)
 	if err != nil {
 		http.Error(w, "failed to delete project", http.StatusInternalServerError)
 		return

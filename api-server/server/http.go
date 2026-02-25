@@ -79,7 +79,7 @@ func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
 		{"/api/v1/project/create", http.MethodPost, s.createProjectHandler, true},
 		{"/api/v1/projects", http.MethodGet, s.getAllProjectsHandler, true},
 		{"/api/v1/project", http.MethodGet, s.getProjectHandler, true},
-		{"/api/v1/project/delete", http.MethodDelete, s.deleteProjectHandler, true},
+		{"/api/v1/project/delete/", http.MethodDelete, s.deleteProjectHandler, true},
 		{"/api/v1/auth/logout/{sessionID}", http.MethodDelete, s.logoutUserHandler, true},
 		{"/api/v1/deployments", http.MethodGet, s.getAllDeploymentsHandler, true},
 		{"/api/v1/deployment", http.MethodGet, s.getDeploymentHandler, true},

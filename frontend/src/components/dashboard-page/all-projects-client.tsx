@@ -81,7 +81,7 @@ const AllProjectsClient = ({ name }: { name: string }) => {
                       overflow-y-auto max-h-[550px] p-1"
       >
         {projects.map((project) => (
-          <ProjectCard key={project.ID} project={project} />
+          <ProjectCard key={project.ID} project={project} name={name} />
         ))}
 
         <ScrollComponent

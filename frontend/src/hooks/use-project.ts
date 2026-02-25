@@ -1,5 +1,5 @@
 import { createProjectAction } from "@/actions/project";
-import { getProjects } from "@/lib/axios/project";
+import { deleteProject, getProjects } from "@/lib/axios/project";
 import { CREATE_PROJECT_KEY } from "@/lib/query-options";
 import {
   useInfiniteQuery,
@@ -10,8 +10,30 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useSession } from "./use-auth";
 import { TokenDetails } from "@/lib/types";
+import { getQueryClient } from "@/lib/query-provider";
 
 const PROJECTS_QUERY_KEY = (name: string[]) => ["projects", ...name];
+
+export const useDeleteProjectMutation = (name: string) => {
+  const { data } = useSession();
+  const queryClient = getQueryClient();
+  const tokenData = data as TokenDetails;
+
+  return useMutation({
+    mutationKey: ["delete", "project"],
+    mutationFn: async ({ projectId }: { projectId: string }) => {
+      await deleteProject(tokenData?.access_token!, projectId);
+    },
+    onError: (error) => {
+      console.error(error);
+      toast.error("Failed to create project");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY([name]) });
+      toast.success("Project deleted successfully.");
+    },
+  });
+};
 
 export const useCreateProjectMutation = () => {
   const router = useRouter();

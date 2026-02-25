@@ -55,6 +55,22 @@ tasks:
       - yarn dev
     label: WEB
 
+  build-server:
+    cmds:
+      - docker compose down && docker compose up -d
+
+  docker:build:
+    cmds:
+      - docker build -t "build-server" .
+
+  docker:tag:
+    cmds:
+      - docker tag build-server sahil1107/build-server
+
+  docker:push:
+    cmds:
+      - docker push sahil1107/build-server
+
   migrate:
     dir: ./migrate
     cmds:
