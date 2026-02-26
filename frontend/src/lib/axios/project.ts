@@ -1,6 +1,6 @@
 import axios from "axios";
 import { clientEnv } from "../env/client";
-import { Project } from "../types";
+import { Project, ProjectWithDeployment } from "../types";
 import { axiosInstance } from "./axios";
 
 export const createProject = async (
@@ -35,7 +35,7 @@ export const getProjects = async (
   name: string,
 ) => {
   try {
-    const res = await axiosInstance.get(
+    const res = await axiosInstance.get<Project[]>(
       clientEnv.NEXT_PUBLIC_ALL_PROJECT_ENDPOINT,
       {
         params: {
@@ -49,7 +49,7 @@ export const getProjects = async (
       },
     );
 
-    return res.data as Project[];
+    return res.data;
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to get projects");
@@ -74,7 +74,7 @@ export const deleteProject = async (accessToken: string, projectId: string) => {
 
 export const getProject = async (accessToken: string, slug: string) => {
   try {
-    const res = await axiosInstance.get(
+    const res = await axiosInstance.get<ProjectWithDeployment>(
       `${clientEnv.NEXT_PUBLIC_GET_PROJECT}/${slug}`,
       {
         headers: {
@@ -82,7 +82,6 @@ export const getProject = async (accessToken: string, slug: string) => {
         },
       },
     );
-    console.log(res.data);
     return res.data;
   } catch (err) {
     console.error(err);

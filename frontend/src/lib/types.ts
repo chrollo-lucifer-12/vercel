@@ -39,11 +39,11 @@ export type LoginResponse = {
   SessionDetails;
 
 export type Project = {
-  ID: string;
-  CreatedAt: string;
-  Name: string;
-  GitUrl: string;
-  SubDomain: string;
+  id: string;
+  created_at: string;
+  name: string;
+  git_url: string;
+  sub_domain: string;
 };
 
 // export type CreateProjectResponse = {
@@ -63,4 +63,12 @@ export type Deployment = {
   id: string;
   status: string;
   logs: LogEvent[];
+};
+
+export type ProjectWithDeployment = {
+  Project: Project;
+  Deployment: {
+    Deployment: Deployment;
+    Logs: LogEvent[];
+  };
 };

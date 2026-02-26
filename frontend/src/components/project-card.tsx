@@ -24,9 +24,9 @@ const ProjectCard = ({ project, name }: { project: Project; name: string }) => {
   return (
     <Card
       onClick={() => {
-        router.push(`/project/${project.SubDomain}`);
+        router.push(`/project/${project.sub_domain}`);
       }}
-      key={project.ID}
+      key={project.id}
       className={`cursor-pointer ${isPending ? "border-orange-500" : ""} hover:bg-[#E6F7F5] hover:text-[#26b3a6] border-2 border-transparent hover:border-[#1A8A81] transition duration-150`}
     >
       <CardHeader>
@@ -35,14 +35,14 @@ const ProjectCard = ({ project, name }: { project: Project; name: string }) => {
             <GithubLogoIcon />
           </Button>
           <div>
-            <CardTitle>{project.Name}</CardTitle>
+            <CardTitle>{project.name}</CardTitle>
             <CardDescription className="flex flex-col">
-              <p> {project.SubDomain} </p>
+              <p> {project.sub_domain} </p>
               <Link
                 className="hover:underline hover:text-[#26b3a6]"
-                href={project.GitUrl}
+                href={project.git_url}
               >
-                {project.GitUrl}
+                {project.git_url}
               </Link>
             </CardDescription>
           </div>
@@ -64,7 +64,7 @@ const ProjectCard = ({ project, name }: { project: Project; name: string }) => {
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
-                    mutate({ projectId: project.ID });
+                    mutate({ projectId: project.id });
                   }}
                   variant={"destructive"}
                 >
