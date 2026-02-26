@@ -1,6 +1,6 @@
 import axios from "axios";
 import { clientEnv } from "../env/client";
-import { CreateProjectResponse, Project } from "../types";
+import { Project } from "../types";
 import { axiosInstance } from "./axios";
 
 export const createProject = async (
@@ -9,7 +9,7 @@ export const createProject = async (
   gitUrl: string,
 ) => {
   try {
-    const res = await axiosInstance.post(
+    const res = await axiosInstance.post<Project>(
       clientEnv.NEXT_PUBLIC_CREATE_PROJECT_ENDPOINT,
       {
         project_name: name,
@@ -21,7 +21,7 @@ export const createProject = async (
         },
       },
     );
-    return res.data as CreateProjectResponse;
+    return res.data;
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to create project");

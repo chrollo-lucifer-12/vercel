@@ -4,7 +4,7 @@ import { User } from "../types";
 
 export const profile = async (accessToken: string) => {
   try {
-    const res = await axiosInstance.get(
+    const res = await axiosInstance.get<User>(
       clientEnv.NEXT_PUBLIC_PROFILE_ENDPOINT,
       {
         headers: {
@@ -12,8 +12,7 @@ export const profile = async (accessToken: string) => {
         },
       },
     );
-    console.log(res.data);
-    return res.data as User;
+    return res.data;
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to fetch profile");

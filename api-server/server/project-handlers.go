@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -111,8 +110,6 @@ func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	fmt.Println(projectRes)
 
 	deployment, err := h.db.GetLatestDeployment(ctx, projectRes.ID)
 	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) == false {

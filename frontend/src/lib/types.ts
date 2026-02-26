@@ -5,8 +5,10 @@ export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 
 export type User = {
+  id: string;
   name: string;
   email: string;
+  is_verified: boolean;
 } | null;
 
 export type AccessTokenDetails = {
@@ -39,32 +41,26 @@ export type LoginResponse = {
 export type Project = {
   ID: string;
   CreatedAt: string;
-  UpdatedAt: string;
-  DeletedAt: string;
   Name: string;
   GitUrl: string;
   SubDomain: string;
-  CustomDomain: string;
-  UserID: string;
 };
 
-export type CreateProjectResponse = {
-  name: string;
-  id: string;
-  sub_domain: string;
-};
+// export type CreateProjectResponse = {
+//   name: string;
+//   id: string;
+//   sub_domain: string;
+// };
 
 export type LogEvent = {
-  CreatedAt: string;
-  DeletedAt: string;
-  ID: string;
-  Log: string;
+  log: string;
+  created_at: string;
+  metadata: any;
 };
 
 export type Deployment = {
-  CreatedAt: string;
-  DeletedAt: string;
-  ID: string;
-  LogEvent: LogEvent[];
-  Status: string;
+  created_at: string;
+  id: string;
+  status: string;
+  logs: LogEvent[];
 };
