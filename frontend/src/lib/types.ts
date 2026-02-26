@@ -53,3 +53,18 @@ export type CreateProjectResponse = {
   id: string;
   sub_domain: string;
 };
+
+export type LogEvent = {
+  CreatedAt: string;
+  DeletedAt: string;
+  ID: string;
+  Log: string;
+};
+
+export type Deployment = {
+  CreatedAt: string;
+  DeletedAt: string;
+  ID: string;
+  LogEvent: LogEvent[];
+  Status: string;
+};

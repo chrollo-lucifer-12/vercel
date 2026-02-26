@@ -2,6 +2,8 @@ package server
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,6 +14,7 @@ import (
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/google/uuid"
 	"github.com/sio/coolname"
+	"gorm.io/gorm"
 )
 
 func (h *ServerClient) createProjectHandler(w http.ResponseWriter, r *http.Request) {
@@ -105,10 +108,23 @@ func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	fmt.Println(projectRes)
+
+	deployment, err := h.db.GetLatestDeployment(ctx, projectRes.ID)
+	if err != nil && errors.Is(err, gorm.ErrRecordNotFound) == false {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	type Res struct {
+		Project    db.Project
+		Deployment db.Deployment
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	json.NewEncoder(w).Encode(projectRes)
+	json.NewEncoder(w).Encode(Res{Project: projectRes, Deployment: deployment})
 }
 
 func (h *ServerClient) deleteProjectHandler(w http.ResponseWriter, r *http.Request) {

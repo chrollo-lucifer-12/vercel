@@ -217,6 +217,16 @@ func (d *DB) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, e
 		First(ctx)
 }
 
+func (d *DB) GetLatestDeployment(ctx context.Context, projectID uuid.UUID) (Deployment, error) {
+	deployment, err := gorm.G[Deployment](d.db).Preload("LogEvents", func(pb gorm.PreloadBuilder) error {
+		pb.Order("sequence ASC")
+		pb.Limit(500)
+		pb.Select("id", "log", "sequence", "deployment_id")
+		return nil
+	}).Where("project_id = ?", projectID).Order("created_at DESC").First(ctx)
+	return deployment, err
+}
+
 func (d *DB) GetAllDeployments(ctx context.Context, projectID uuid.UUID) ([]Deployment, error) {
 	return find[Deployment](ctx, d.db, "project_id = ?", projectID)
 }

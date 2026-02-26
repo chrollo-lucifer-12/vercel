@@ -68,7 +68,8 @@ type Deployment struct {
 
 type LogEvent struct {
 	Base
-	DeploymentID uuid.UUID `gorm:"type:uuid;index"`
+	DeploymentID uuid.UUID  `gorm:"type:uuid;index;not null"`
+	Deployment   Deployment `gorm:"foreignKey:DeploymentID"`
 	Log          string
 	Metadata     datatypes.JSON `gorm:"type:jsonb"`
 	Sequence     int64
