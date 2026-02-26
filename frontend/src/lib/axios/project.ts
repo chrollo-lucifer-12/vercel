@@ -1,6 +1,6 @@
 import axios from "axios";
 import { clientEnv } from "../env/client";
-import { Project, ProjectWithDeployment } from "../types";
+import { Project, ProjectWithDeployment, WebsiteAnalytics } from "../types";
 import { axiosInstance } from "./axios";
 
 export const createProject = async (
@@ -86,5 +86,28 @@ export const getProject = async (accessToken: string, slug: string) => {
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to get project");
+  }
+};
+
+export const getProjectAnalytics = async (
+  accessToken: string,
+  slug: string,
+  from: Date | null,
+  to: Date | null,
+) => {
+  try {
+    const res = await axiosInstance.get<WebsiteAnalytics>(
+      `${clientEnv.NEXT_PUBLIC_GET_ANALYTICS}/${slug}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+  } catch (err) {
+    console.error(err);
+    throw err instanceof Error
+      ? err
+      : new Error("Failed to get project analytics");
   }
 };

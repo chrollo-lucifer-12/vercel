@@ -150,12 +150,15 @@ func (h *ServerClient) deleteProjectHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *ServerClient) getProjectAnalytics(w http.ResponseWriter, r *http.Request) {
-	project, _, err := verifyDeployment(r.URL.Path, r, h.db)
-
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/project/delete/")
+	if path == "" {
+		http.Error(w, "project id required", http.StatusBadRequest)
 		return
 	}
+
+	ctx := r.Context()
+
+	project, err := h.db.GetProjectBySlug(ctx, path)
 
 	query := r.URL.Query()
 	fromStr := query.Get("from")
@@ -180,7 +183,6 @@ func (h *ServerClient) getProjectAnalytics(w http.ResponseWriter, r *http.Reques
 		toTime = &t
 	}
 
-	ctx := r.Context()
 	analytics, err := h.db.GetAnalytics(ctx, project.SubDomain, fromTime, toTime)
 
 	if err != nil {

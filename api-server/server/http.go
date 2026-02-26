@@ -83,7 +83,7 @@ func (s *ServerClient) registerRoutes(mux *http.ServeMux) {
 		{"/api/v1/auth/logout/{sessionID}", http.MethodDelete, s.logoutUserHandler, true},
 		{"/api/v1/deployments", http.MethodGet, s.getAllDeploymentsHandler, true},
 		{"/api/v1/deployment", http.MethodGet, s.getDeploymentHandler, true},
-		{"/api/v1/project/analytics", http.MethodGet, s.getProjectAnalytics, true},
+		{"/api/v1/project/analytics/", http.MethodGet, s.getProjectAnalytics, true},
 
 		{"/api/v1/auth/register", http.MethodPost, s.registerUserHandler, false},
 		{"/auth/verify-email", http.MethodGet, s.verifyEmailHandler, false},

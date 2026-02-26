@@ -72,3 +72,19 @@ export type ProjectWithDeployment = {
     Logs: LogEvent[];
   };
 };
+
+export type WebsiteAnalytics = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  deleted_at?: string;
+
+  subdomain: string;
+  path: string;
+  method: string;
+  status_code: number;
+  response_time_ms?: number;
+  user_agent: string;
+  ip_address: string;
+  referer: string;
+};

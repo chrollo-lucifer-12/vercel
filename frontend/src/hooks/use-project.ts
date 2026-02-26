@@ -1,5 +1,10 @@
 import { createProjectAction } from "@/actions/project";
-import { deleteProject, getProject, getProjects } from "@/lib/axios/project";
+import {
+  deleteProject,
+  getProject,
+  getProjectAnalytics,
+  getProjects,
+} from "@/lib/axios/project";
 import { CREATE_PROJECT_KEY } from "@/lib/query-options";
 import {
   useInfiniteQuery,
@@ -74,6 +79,31 @@ export const useProject = (slug: string) => {
 
     queryFn: async () => {
       const res = await getProject(tokenData?.access_token!, slug);
+      return res;
+    },
+  });
+};
+
+export const useAnalytics = (
+  slug: string,
+  from: Date | null,
+  to: Date | null,
+) => {
+  const { data } = useSession();
+  const tokenData = data as TokenDetails;
+
+  return useQuery({
+    queryKey: ["analytics", slug, from, to],
+    enabled: !!tokenData?.access_token,
+    refetchOnWindowFocus: false,
+
+    queryFn: async () => {
+      const res = await getProjectAnalytics(
+        tokenData?.access_token!,
+        slug,
+        from,
+        to,
+      );
       return res;
     },
   });
