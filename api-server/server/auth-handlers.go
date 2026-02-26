@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
+	"github.com/chrollo-lucifer-12/api-server/server/dto"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/utils"
 )
@@ -186,7 +187,8 @@ func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Reques
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(newUser)
+	response := dto.ToUserResponse(newUser)
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -233,21 +235,11 @@ func (h *ServerClient) loginUserHandler(w http.ResponseWriter, r *http.Request) 
 	}
 	h.auth.CreateSession(ctx, &newSession)
 
-	res := LoginResponse{
-		SessionID:             newSession.UserID.String(),
-		RefreshToken:          refreshToken,
-		AccessTokenExpiresAt:  accessClaims.RegisteredClaims.ExpiresAt.Time,
-		RefreshTokenExpiresAt: refreshClaims.RegisteredClaims.ExpiresAt.Time,
-		AccessToken:           accessToken,
-		User: UserRes{
-			Name:  user.Name,
-			Email: user.Email,
-		},
-	}
+	response := dto.ToLoginResponse(user, newSession.UserID.String(), refreshToken, accessClaims.RegisteredClaims.ExpiresAt.Time, refreshClaims.RegisteredClaims.ExpiresAt.Time, accessToken)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(res)
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *ServerClient) logoutUserHandler(w http.ResponseWriter, r *http.Request) {
@@ -316,13 +308,11 @@ func (h *ServerClient) refreshAccessTokenHandler(w http.ResponseWriter, r *http.
 		return
 	}
 
+	response := dto.ToRenewAccessTokenResponse(accessToken, accessClaims.RegisteredClaims.ExpiresAt.Time, session.UserID.String())
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(RenewAccessTokenRes{
-		AccessToken:          accessToken,
-		AccessTokenExpiresAt: accessClaims.RegisteredClaims.ExpiresAt.Time,
-		SessionID:            session.UserID.String(),
-	})
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *ServerClient) getUserProfileHandler(w http.ResponseWriter, r *http.Request) {
@@ -341,7 +331,9 @@ func (h *ServerClient) getUserProfileHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	response := dto.ToUserResponse(user)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(UserRes{Name: user.Name, Email: user.Email})
+	json.NewEncoder(w).Encode(response)
 }

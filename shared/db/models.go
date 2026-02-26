@@ -9,10 +9,10 @@ import (
 )
 
 type Base struct {
-	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	UpdatedAt time.Time `gorm:"autoUpdateTime"`
-	DeletedAt time.Time `gorm:"index"`
+	ID        uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	DeletedAt time.Time `gorm:"index" json:"deleted_at"`
 }
 
 func (b *Base) BeforeCreate(tx *gorm.DB) error {
@@ -24,55 +24,55 @@ func (b *Base) BeforeCreate(tx *gorm.DB) error {
 
 type User struct {
 	Base
-	Name       string    `gorm:"not null;check:name <> ''"`
-	Email      string    `gorm:"unique;not null;check:email <> ''"`
-	Password   string    `gorm:"not null;check:password <> ''"`
-	Projects   []Project `gorm:"foreignKey:UserID"`
-	IsVerified bool
+	Name       string    `gorm:"not null;check:name <> ''" json:"name"`
+	Email      string    `gorm:"unique;not null;check:email <> ''" json:"email"`
+	Password   string    `gorm:"not null;check:password <> ''" json:"-"`
+	Projects   []Project `gorm:"foreignKey:UserID" json:"projects,omitempty"`
+	IsVerified bool      `json:"is_verified"`
 }
 
 type Otp struct {
-	UserID    uuid.UUID `gorm:"type:uuid;primaryKey"`
-	User      *User     `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
-	Token     string
-	CreatedAt time.Time `gorm:"autoCreateTime"`
-	ExpiresAt time.Time
+	UserID    uuid.UUID `gorm:"type:uuid;primaryKey" json:"user_id"`
+	User      *User     `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE" json:"user,omitempty"`
+	Token     string    `json:"token"`
+	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
+	ExpiresAt time.Time `json:"expires_at"`
 }
 
 type Session struct {
-	UserID       uuid.UUID `gorm:"type:uuid;primaryKey"`
-	User         *User     `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE"`
-	UserEmail    string    `gorm:"not null"`
-	RefreshToken string    `gorm:"not null"`
-	Revoked      bool
-	ExpiresAt    time.Time
+	UserID       uuid.UUID `gorm:"type:uuid;primaryKey" json:"user_id"`
+	User         *User     `gorm:"foreignKey:UserID;references:ID;constraint:OnDelete:CASCADE" json:"user,omitempty"`
+	UserEmail    string    `gorm:"not null" json:"user_email"`
+	RefreshToken string    `gorm:"not null" json:"refresh_token"`
+	Revoked      bool      `json:"revoked"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
 
 type Project struct {
 	Base
-	Name         string
-	GitUrl       string
-	SubDomain    string
-	CustomDomain string
-	UserID       uuid.UUID
-	Deployments  []Deployment `gorm:"foreignKey:ProjectID"`
+	Name         string       `json:"name"`
+	GitUrl       string       `json:"git_url"`
+	SubDomain    string       `json:"sub_domain"`
+	CustomDomain string       `json:"custom_domain"`
+	UserID       uuid.UUID    `json:"user_id"`
+	Deployments  []Deployment `gorm:"foreignKey:ProjectID" json:"deployments,omitempty"`
 }
 
 type Deployment struct {
 	Base
-	ProjectID uuid.UUID `gorm:"type:uuid;index"`
-	Status    string
-	LogEvents []LogEvent `gorm:"foreignKey:DeploymentID"`
-	Sequence  int        `gorm:"autoIncrement"`
+	ProjectID uuid.UUID  `gorm:"type:uuid;index" json:"project_id"`
+	Status    string     `json:"status"`
+	LogEvents []LogEvent `gorm:"foreignKey:DeploymentID" json:"log_events,omitempty"`
+	Sequence  int        `gorm:"autoIncrement" json:"sequence"`
 }
 
 type LogEvent struct {
 	Base
-	DeploymentID uuid.UUID  `gorm:"type:uuid;index;not null"`
-	Deployment   Deployment `gorm:"foreignKey:DeploymentID"`
-	Log          string
-	Metadata     datatypes.JSON `gorm:"type:jsonb"`
-	Sequence     int64
+	DeploymentID uuid.UUID      `gorm:"type:uuid;index;not null" json:"deployment_id"`
+	Deployment   Deployment     `gorm:"foreignKey:DeploymentID" json:"deployment,omitempty"`
+	Log          string         `json:"log"`
+	Metadata     datatypes.JSON `gorm:"type:jsonb" json:"metadata"`
+	Sequence     int64          `json:"sequence"`
 }
 
 type WebsiteAnalytics struct {

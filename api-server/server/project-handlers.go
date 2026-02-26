@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
+	"github.com/chrollo-lucifer-12/api-server/server/dto"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/google/uuid"
 	"github.com/sio/coolname"
@@ -48,12 +49,10 @@ func (h *ServerClient) createProjectHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	response := dto.ToCreateProjectResposne(project)
+
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
-		"name":       project.Name,
-		"id":         project.ID.String(),
-		"sub_domain": project.SubDomain,
-	})
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *ServerClient) getAllProjectsHandler(w http.ResponseWriter, r *http.Request) {
@@ -87,10 +86,15 @@ func (h *ServerClient) getAllProjectsHandler(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	var p []dto.CreateProjectResposne
+	for _, project := range projects {
+		p = append(p, dto.ToCreateProjectResposne(project))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	json.NewEncoder(w).Encode(projects)
+	json.NewEncoder(w).Encode(p)
 }
 
 func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request) {
@@ -116,15 +120,12 @@ func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	type Res struct {
-		Project    db.Project
-		Deployment db.Deployment
-	}
+	response := dto.ToGetProjectWithDeployment(projectRes, deployment)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	json.NewEncoder(w).Encode(Res{Project: projectRes, Deployment: deployment})
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *ServerClient) deleteProjectHandler(w http.ResponseWriter, r *http.Request) {

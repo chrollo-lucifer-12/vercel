@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
+	"github.com/chrollo-lucifer-12/api-server/server/dto"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/env"
 	"github.com/chrollo-lucifer-12/shared/workflow"
@@ -139,14 +140,10 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := map[string]interface{}{
-		"status":        "queued",
-		"projectSlug":   project.SubDomain,
-		"deployment_id": depID.String(),
-	}
+	response := dto.ToCreateDeploymentResponse("queued", project.SubDomain, depID.String())
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	json.NewEncoder(w).Encode(response)
 }
 
 func (h *ServerClient) getAllDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
@@ -164,9 +161,14 @@ func (h *ServerClient) getAllDeploymentsHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	var d []dto.GetDeploymentResponse
+	for _, deployment := range deployments {
+		d = append(d, dto.ToGetDeploymentResponse(deployment))
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(deployments)
+	json.NewEncoder(w).Encode(d)
 }
 
 func (h *ServerClient) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
@@ -184,7 +186,9 @@ func (h *ServerClient) getDeploymentHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	response := dto.ToGetDeploymentWithLogsResponse(deploymentRes)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(deploymentRes)
+	json.NewEncoder(w).Encode(response)
 }
