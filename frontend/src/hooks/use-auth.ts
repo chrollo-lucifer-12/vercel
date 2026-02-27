@@ -90,7 +90,7 @@ export const useSignout = () => {
 };
 
 export const useSession = () => {
-  return useSuspenseQuery({
+  return useQuery({
     ...tokenQueryOptions(),
     queryKey: TOKEN_QUERY_KEY,
 

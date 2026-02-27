@@ -1,5 +1,5 @@
 import { clientEnv } from "../env/client";
-import { Deployment } from "../types";
+import { Deployment, DeploymentWithLogs } from "../types";
 import { axiosInstance } from "./axios";
 
 export const getDeployments = async (accessToken: string, slug: string) => {
@@ -25,7 +25,7 @@ export const getDeployment = async (
   deploymentId: string,
 ) => {
   try {
-    const res = await axiosInstance.get<Deployment>(
+    const res = await axiosInstance.get<DeploymentWithLogs>(
       `${clientEnv.NEXT_PUBLIC_GET_DEPLOYMENT}/${deploymentId}`,
       {
         headers: {
@@ -33,6 +33,7 @@ export const getDeployment = async (
         },
       },
     );
+    console.log(res.data);
     return res.data;
   } catch (err) {
     console.error(err);

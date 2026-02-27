@@ -18,13 +18,13 @@ export const useGetDeployments = (slug: string) => {
   });
 };
 
-export const useGetDeployment = (deploymentId: string) => {
+export const useGetDeployment = (deploymentId: string, open: boolean) => {
   const { data } = useSession();
   const tokenData = data as TokenDetails;
 
   return useQuery({
     queryKey: ["deployment", deploymentId],
-    enabled: !!tokenData?.access_token,
+    enabled: !!tokenData?.access_token && open,
     refetchOnWindowFocus: false,
     queryFn: async () => {
       const res = await getDeployment(tokenData?.access_token!, deploymentId);

@@ -66,6 +66,11 @@ export type Deployment = {
   logs: LogEvent[];
 };
 
+export type DeploymentWithLogs = {
+  Deployment: Deployment;
+  Logs: LogEvent[];
+};
+
 export type ProjectWithDeployment = {
   Project: Project;
   Deployment: {
