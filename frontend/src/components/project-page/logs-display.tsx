@@ -1,4 +1,5 @@
 import { LogEvent } from "@/lib/types";
+import { formatDate } from "@/lib/utils";
 
 const LogsDisplay = ({ logs }: { logs: LogEvent[] }) => {
   return (
@@ -9,7 +10,7 @@ const LogsDisplay = ({ logs }: { logs: LogEvent[] }) => {
         })
         .map((log, i) => (
           <div key={i} className="whitespace-pre-wrap">
-            {log.created_at} {log.log}
+            {formatDate(log.created_at)} {log.log}
           </div>
         ))}
     </div>

@@ -1,24 +1,48 @@
 "use client";
 
 import { useProject } from "@/hooks/use-project";
-import { Button } from "../ui/button";
-import {
-  CalendarBlankIcon,
-  GithubLogoIcon,
-  LinkIcon,
-} from "@phosphor-icons/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import ProjectTitle from "./project-title";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import Overview from "./overview";
 import Deployments from "./deployments";
+import { Skeleton } from "../ui/skeleton";
+
+const ProjectPageSkeleton = () => {
+  return (
+    <div className="mt-6 w-full flex flex-col gap-4">
+      <Skeleton className="h-8 w-1/3 rounded-md" />
+      <Skeleton className="h-4 w-1/4 rounded-md" />
+
+      <div className="flex gap-2">
+        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-32 rounded-md" />
+      </div>
+
+      <div className="flex flex-col gap-2 mt-2">
+        <Skeleton className="h-6 w-1/5 rounded-md" />
+        <Skeleton className="h-4 w-full rounded-md" />
+        <Skeleton className="h-4 w-full rounded-md" />
+        <Skeleton className="h-4 w-3/4 rounded-md" />
+      </div>
+
+      <div className="flex flex-col gap-2 mt-4">
+        <Skeleton className="h-6 w-1/4 rounded-md" />
+        <Skeleton className="h-4 w-full rounded-md" />
+        <Skeleton className="h-4 w-full rounded-md" />
+        <Skeleton className="h-4 w-2/3 rounded-md" />
+      </div>
+    </div>
+  );
+};
 
 const ProjectPage = ({ subdomain }: { subdomain: string }) => {
   const { data, isLoading } = useProject(subdomain);
   const router = useRouter();
   const searchParams = useSearchParams();
   const tabValue = searchParams.get("tab");
-  if (isLoading) return null;
+  if (isLoading) return <ProjectPageSkeleton />;
   return (
     <div className="mt-6 w-full flex flex-col  gap-4">
       <ProjectTitle
@@ -44,7 +68,7 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
           logs={data?.Deployment.Logs!}
         />
         <TabsContent value="analytics"></TabsContent>
-        <Deployments subDomain={subdomain} />
+        <Deployments subDomain={data?.Project.sub_domain!} />
       </Tabs>
     </div>
   );

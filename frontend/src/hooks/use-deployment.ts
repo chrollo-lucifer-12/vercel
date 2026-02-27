@@ -8,7 +8,7 @@ export const useGetDeployments = (slug: string) => {
   const tokenData = data as TokenDetails;
 
   return useQuery({
-    queryKey: ["deployment", slug],
+    queryKey: ["deployments", slug],
     enabled: !!tokenData?.access_token,
     refetchOnWindowFocus: false,
     queryFn: async () => {

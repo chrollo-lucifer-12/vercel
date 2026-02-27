@@ -4,6 +4,7 @@ import { Card, CardContent } from "../ui/card";
 import { TabsContent } from "../ui/tabs";
 import { LogEvent } from "@/lib/types";
 import LogsDisplay from "./logs-display";
+import { formatDate } from "@/lib/utils";
 
 const Overview = ({
   logs,
@@ -27,7 +28,7 @@ const Overview = ({
             <div className="w-[60%] pl-4 flex flex-col justify-center gap-2">
               <Badge variant={"secondary"}>
                 <CalendarBlankIcon data-icon="inline-start" />
-                {createdAt}
+                {formatDate(createdAt)}
               </Badge>
               <Badge variant={"secondary"}>
                 <LinkIcon data-icon="inline-start" />
