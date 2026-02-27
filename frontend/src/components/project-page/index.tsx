@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
 import Overview from "./overview";
 import Deployments from "./deployments";
 import { Skeleton } from "../ui/skeleton";
+import Analytics from "./analytics";
 
 const ProjectPageSkeleton = () => {
   return (
@@ -51,7 +52,7 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
       />
       <Tabs
         value={tabValue || "overview"}
-        onValueChange={(e) => {
+        onValueChange={(e: string) => {
           const params = new URLSearchParams(searchParams.toString());
           params.set("tab", e);
           router.replace(`?${params.toString()}`);
@@ -67,7 +68,7 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
           subDomain={data?.Project.sub_domain!}
           logs={data?.Deployment.Logs!}
         />
-        <TabsContent value="analytics"></TabsContent>
+        <Analytics subDomain={data?.Project.sub_domain!} />
         <Deployments subDomain={data?.Project.sub_domain!} />
       </Tabs>
     </div>

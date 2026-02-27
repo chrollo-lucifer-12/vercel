@@ -16,6 +16,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_GET_ANALYTICS: z.string().min(1),
   NEXT_PUBLIC_GET_DEPLOYMENTS: z.string().min(1),
   NEXT_PUBLIC_GET_DEPLOYMENT: z.string().min(1),
+  NEXT_PUBLIC_PROJECT_ANALYTICS: z.string().min(1),
 });
 
 export const clientEnv = envSchema.parse({
@@ -36,4 +37,5 @@ export const clientEnv = envSchema.parse({
   NEXT_PUBLIC_GET_ANALYTICS: process.env.NEXT_PUBLIC_GET_ANALYTICS,
   NEXT_PUBLIC_GET_DEPLOYMENTS: process.env.NEXT_PUBLIC_GET_DEPLOYMENTS,
   NEXT_PUBLIC_GET_DEPLOYMENT: process.env.NEXT_PUBLIC_GET_DEPLOYMENT,
+  NEXT_PUBLIC_PROJECT_ANALYTICS: process.env.NEXT_PUBLIC_PROJECT_ANALYTICS,
 });

@@ -96,7 +96,7 @@ export const getProjectAnalytics = async (
   to: Date | null,
 ) => {
   try {
-    const res = await axiosInstance.get<WebsiteAnalytics>(
+    const res = await axiosInstance.get<WebsiteAnalytics[]>(
       `${clientEnv.NEXT_PUBLIC_GET_ANALYTICS}/${slug}`,
       {
         headers: {
@@ -104,6 +104,7 @@ export const getProjectAnalytics = async (
         },
       },
     );
+    return res.data;
   } catch (err) {
     console.error(err);
     throw err instanceof Error

@@ -150,7 +150,7 @@ func (h *ServerClient) deleteProjectHandler(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *ServerClient) getProjectAnalytics(w http.ResponseWriter, r *http.Request) {
-	path := strings.TrimPrefix(r.URL.Path, "/api/v1/project/delete/")
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/project/analytics/")
 	if path == "" {
 		http.Error(w, "project id required", http.StatusBadRequest)
 		return
