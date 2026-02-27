@@ -62,6 +62,7 @@ export type Deployment = {
   created_at: string;
   id: string;
   status: string;
+  sequence: number;
   logs: LogEvent[];
 };
 

@@ -210,7 +210,7 @@ func (d *DB) GetDeploymentByID(ctx context.Context, id uuid.UUID) (Deployment, e
 		Preload("LogEvents", func(pb gorm.PreloadBuilder) error {
 			pb.Order("sequence ASC")
 			pb.Limit(500)
-			pb.Select("id", "log", "sequence")
+			pb.Select("id", "log", "sequence", "deployment_id")
 			return nil
 		}).
 		Where("id = ?", id).

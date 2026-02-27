@@ -7,16 +7,17 @@ import {
   GithubLogoIcon,
   LinkIcon,
 } from "@phosphor-icons/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProjectTitle from "./project-title";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../ui/tabs";
-import { Card, CardContent, CardHeader } from "../ui/card";
-import { Badge } from "../ui/badge";
 import Overview from "./overview";
+import Deployments from "./deployments";
 
 const ProjectPage = ({ subdomain }: { subdomain: string }) => {
   const { data, isLoading } = useProject(subdomain);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const tabValue = searchParams.get("tab");
   if (isLoading) return null;
   return (
     <div className="mt-6 w-full flex flex-col  gap-4">
@@ -24,11 +25,18 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
         name={data?.Project.name!}
         gitUrl={data?.Project.git_url!}
       />
-      <Tabs defaultValue="overview">
+      <Tabs
+        value={tabValue || "overview"}
+        onValueChange={(e) => {
+          const params = new URLSearchParams(searchParams.toString());
+          params.set("tab", e);
+          router.replace(`?${params.toString()}`);
+        }}
+      >
         <TabsList variant="line">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          <TabsTrigger value="create">Deployments</TabsTrigger>
+          <TabsTrigger value="deployments">Deployments</TabsTrigger>
         </TabsList>
         <Overview
           createdAt={data?.Project.created_at!}
@@ -36,7 +44,7 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
           logs={data?.Deployment.Logs!}
         />
         <TabsContent value="analytics"></TabsContent>
-        <TabsContent value="create"></TabsContent>
+        <Deployments subDomain={subdomain} />
       </Tabs>
     </div>
   );

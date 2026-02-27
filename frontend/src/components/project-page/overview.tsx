@@ -3,6 +3,7 @@ import { Badge } from "../ui/badge";
 import { Card, CardContent } from "../ui/card";
 import { TabsContent } from "../ui/tabs";
 import { LogEvent } from "@/lib/types";
+import LogsDisplay from "./logs-display";
 
 const Overview = ({
   logs,
@@ -36,17 +37,7 @@ const Overview = ({
           </div>
           <div>
             <h1 className="text-lg">Build Logs</h1>
-            <div className="bg-black text-green-400 font-mono text-sm p-4 rounded-lg h-96 overflow-y-auto">
-              {logs
-                .filter((log) => {
-                  return log.log.length > 0;
-                })
-                .map((log, i) => (
-                  <div key={i} className="whitespace-pre-wrap">
-                    {log.created_at} {log.log}
-                  </div>
-                ))}
-            </div>
+            <LogsDisplay logs={logs} />
           </div>
         </CardContent>
       </Card>

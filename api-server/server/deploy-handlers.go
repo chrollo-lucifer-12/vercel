@@ -13,6 +13,7 @@ import (
 	"github.com/chrollo-lucifer-12/api-server/server/dto"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/env"
+	"github.com/chrollo-lucifer-12/shared/utils"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -147,14 +148,21 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ServerClient) getAllDeploymentsHandler(w http.ResponseWriter, r *http.Request) {
-	project, _, err := verifyDeployment(r.URL.Path, r, h.db)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/deployments/")
+	if path == "" {
+		http.Error(w, "project id required", http.StatusBadRequest)
 		return
 	}
+
 	ctx := r.Context()
 
-	deployments, err := h.db.GetAllDeployments(ctx, project.ID)
+	projectRes, err := h.db.GetProjectBySlug(ctx, path)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	deployments, err := h.db.GetAllDeployments(ctx, projectRes.ID)
 
 	if err != nil {
 		http.Error(w, "failed to get deployments: "+err.Error(), http.StatusInternalServerError)
@@ -172,14 +180,17 @@ func (h *ServerClient) getAllDeploymentsHandler(w http.ResponseWriter, r *http.R
 }
 
 func (h *ServerClient) getDeploymentHandler(w http.ResponseWriter, r *http.Request) {
-	_, deployment, err := verifyDeployment(r.URL.Path, r, h.db)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	path := strings.TrimPrefix(r.URL.Path, "/api/v1/deployment/")
+	if path == "" {
+		http.Error(w, "project id required", http.StatusBadRequest)
 		return
 	}
+
+	deploymentID := utils.StringToUUID(path)
+
 	ctx := r.Context()
 
-	deploymentRes, err := h.db.GetDeploymentByID(ctx, deployment.ID)
+	deploymentRes, err := h.db.GetDeploymentByID(ctx, deploymentID)
 
 	if err != nil {
 		http.Error(w, "failed to get deployments: "+err.Error(), http.StatusInternalServerError)
