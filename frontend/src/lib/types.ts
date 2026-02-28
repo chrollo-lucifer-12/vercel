@@ -27,11 +27,6 @@ export type SessionDetails = {
 
 export type TokenDetails = (AccessTokenDetails & SessionDetails) | null;
 
-export type AuthUserDetails = {
-  User: User;
-} & AccessTokenDetails &
-  SessionDetails;
-
 export type LoginResponse = {
   User: User;
 } & AccessTokenDetails &
