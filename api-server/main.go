@@ -9,6 +9,7 @@ import (
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/env"
 	"github.com/chrollo-lucifer-12/shared/mail"
+	"github.com/chrollo-lucifer-12/shared/redis"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 )
 
@@ -30,6 +31,7 @@ func main() {
 	factory := workflow.NewDefaultGithubClientFactory()
 	githubClient := factory.NewClient(ctx, githubToken)
 	mailClient := mail.NewMailClient(env.ResendApiKey.GetValue())
+	redisClient := redis.NewRedisClient(env.RedisUrl.GetValue())
 
 	validator := workflow.NewDefaultConfigValidator()
 	builder := workflow.NewDefaultEventBuilder()
@@ -41,7 +43,7 @@ func main() {
 		builder,
 	)
 
-	h, err := server.NewServerClient(w, db, mailClient)
+	h, err := server.NewServerClient(w, db, redisClient, mailClient)
 	if err != nil {
 		log.Fatal(err)
 		return

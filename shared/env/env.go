@@ -23,6 +23,7 @@ const (
 	Region               EnvKey = "REGION"
 	SupabaseEndpoint     EnvKey = "SUPABASE_ENDPOINT"
 	ResendApiKey         EnvKey = "RESEND_API_KEY"
+	RedisUrl             EnvKey = "REDIS_URL"
 )
 
 const (

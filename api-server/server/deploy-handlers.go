@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/api-server/server/dto"
@@ -141,6 +142,9 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	cacheKey := "deployments:project:" + project.SubDomain
+	h.redis.Del(ctx, cacheKey)
+
 	response := dto.ToCreateDeploymentResponse("queued", project.SubDomain, depID.String())
 
 	w.Header().Set("Content-Type", "application/json")
@@ -155,6 +159,16 @@ func (h *ServerClient) getAllDeploymentsHandler(w http.ResponseWriter, r *http.R
 	}
 
 	ctx := r.Context()
+
+	cacheKey := "deployments:project:" + path
+	cached, err := h.redis.Get(ctx, cacheKey)
+
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(cached))
+		return
+	}
 
 	projectRes, err := h.db.GetProjectBySlug(ctx, path)
 	if err != nil {
@@ -174,6 +188,10 @@ func (h *ServerClient) getAllDeploymentsHandler(w http.ResponseWriter, r *http.R
 		d = append(d, dto.ToGetDeploymentResponse(deployment))
 	}
 
+	jsonData, _ := json.Marshal(d)
+
+	h.redis.Set(ctx, cacheKey, jsonData, 30*time.Minute)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(d)
@@ -189,6 +207,15 @@ func (h *ServerClient) getDeploymentHandler(w http.ResponseWriter, r *http.Reque
 	deploymentID := utils.StringToUUID(path)
 
 	ctx := r.Context()
+	cacheKey := "deployment:" + path
+
+	cached, err := h.redis.Get(ctx, cacheKey)
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(cached))
+		return
+	}
 
 	deploymentRes, err := h.db.GetDeploymentByID(ctx, deploymentID)
 
@@ -198,6 +225,9 @@ func (h *ServerClient) getDeploymentHandler(w http.ResponseWriter, r *http.Reque
 	}
 
 	response := dto.ToGetDeploymentWithLogsResponse(deploymentRes)
+
+	jsonData, _ := json.Marshal(response)
+	h.redis.Set(ctx, cacheKey, jsonData, 30*time.Second)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
