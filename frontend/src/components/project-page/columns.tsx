@@ -7,7 +7,7 @@ import { Button } from "../ui/button";
 import { CalendarBlankIcon, DotsThreeCircleIcon } from "@phosphor-icons/react";
 import { formatDate } from "@/lib/utils";
 import { Badge } from "../ui/badge";
-import { getQueryClient } from "@/lib/query-provider";
+import { getQueryClient } from "@/lib/query/query-provider";
 
 export const columns: ColumnDef<Deployment>[] = [
   {
@@ -47,8 +47,8 @@ export const columns: ColumnDef<Deployment>[] = [
       return (
         <BuildDialog deploymentId={id}>
           <Button
-            onClick={(e) => {
-              queryClient.prefetchQuery({ queryKey: ["deployment", id] });
+            onClick={async (e) => {
+              await queryClient.prefetchQuery({ queryKey: ["deployment", id] });
             }}
           >
             <DotsThreeCircleIcon />

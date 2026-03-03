@@ -5,7 +5,7 @@ import {
   getProjectAnalytics,
   getProjects,
 } from "@/lib/axios/project";
-import { CREATE_PROJECT_KEY } from "@/lib/query-options";
+import { CREATE_PROJECT_KEY } from "@/lib/query/query-options";
 import {
   useInfiniteQuery,
   useMutation,
@@ -16,7 +16,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { useSession } from "./use-auth";
 import { TokenDetails } from "@/lib/types";
-import { getQueryClient } from "@/lib/query-provider";
+import { getQueryClient } from "@/lib/query/query-provider";
 
 const PROJECTS_QUERY_KEY = (name: string[]) => ["projects", ...name];
 

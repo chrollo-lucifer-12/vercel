@@ -5,12 +5,12 @@ import {
   profileQueryOptions,
   tokenQueryOptions,
   verifyMutationOptions,
-} from "@/lib/query-options";
-import { TokenDetails, User } from "@/lib/types";
+} from "@/lib/query/query-options";
+import { AccessTokenDetails, TokenDetails, User } from "@/lib/types";
 import { useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { getQueryClient } from "@/lib/query-provider";
+import { getQueryClient } from "@/lib/query/query-provider";
 import { profile } from "@/lib/axios/user";
 import { clientEnv } from "@/lib/env/client";
 
@@ -95,6 +95,19 @@ export const useSession = () => {
     queryKey: TOKEN_QUERY_KEY,
 
     queryFn: async (): Promise<TokenDetails | null> => {
+      const stored = sessionStorage.getItem("session_data");
+
+      if (stored) {
+        const parsed: TokenDetails = JSON.parse(stored);
+        if (parsed) {
+          const expiresAt = new Date(parsed.access_token_expires_at).getTime();
+          const timeLeft = expiresAt - Date.now();
+          if (timeLeft > 2 * 60 * 1000) {
+            return parsed;
+          }
+        }
+      }
+
       const res = await fetch(`${clientEnv.NEXT_PUBLIC_BASE_URL}/api/refresh`, {
         method: "GET",
         credentials: "include",
@@ -108,6 +121,14 @@ export const useSession = () => {
       if (!text) return null;
 
       const data = JSON.parse(text);
+
+      const sessionData: TokenDetails = {
+        access_token: data.access_token,
+        access_token_expires_at: data.access_token_expires_at,
+        session_id: data.session_id,
+      };
+
+      sessionStorage.setItem("session_data", JSON.stringify(sessionData));
 
       return data.success ? data.access_token : null;
     },

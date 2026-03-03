@@ -1,3 +1,4 @@
+"use client";
 import { useAnalytics } from "@/hooks/use-project";
 import { TabsContent } from "../ui/tabs";
 import { useState, useMemo } from "react";

@@ -76,15 +76,18 @@ type LogEvent struct {
 }
 
 type WebsiteAnalytics struct {
-	Base
-	Subdomain      string `gorm:"type:varchar(255);not null;index:idx_subdomain" json:"subdomain"`
-	Path           string `gorm:"type:varchar(1000);not null" json:"path"`
-	Method         string `gorm:"type:varchar(10);not null" json:"method"`
-	StatusCode     int    `gorm:"not null" json:"status_code"`
-	ResponseTimeMs int    `gorm:"type:int" json:"response_time_ms,omitempty"`
-	UserAgent      string `gorm:"type:text" json:"user_agent"`
-	IPAddress      string `gorm:"type:varchar(45)" json:"ip_address"`
-	Referer        string `gorm:"type:text" json:"referer"`
+	ID             uint           `gorm:"primaryKey" json:"id"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	Subdomain      string         `gorm:"type:varchar(255);not null;index:idx_subdomain" json:"subdomain"`
+	Path           string         `gorm:"type:varchar(1000);not null" json:"path"`
+	Method         string         `gorm:"type:varchar(10);not null" json:"method"`
+	StatusCode     int            `gorm:"not null" json:"status_code"`
+	ResponseTimeMs int            `gorm:"type:int" json:"response_time_ms,omitempty"`
+	UserAgent      string         `gorm:"type:text" json:"user_agent"`
+	IPAddress      string         `gorm:"type:varchar(45)" json:"ip_address"`
+	Referer        string         `gorm:"type:text" json:"referer"`
 }
 
 type Cache struct {
