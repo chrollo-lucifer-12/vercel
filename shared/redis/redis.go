@@ -79,3 +79,35 @@ func (r *RedisClient) Dequeue(ctx context.Context, queue string) (string, error)
 	}
 	return result[1], nil
 }
+
+func (r *RedisClient) StreamAdd(ctx context.Context, stream string, values map[string]interface{}) (string, error) {
+	return r.client.XAdd(ctx, &redis.XAddArgs{
+		Stream: stream,
+		Values: values,
+		ID:     "*",
+	}).Result()
+}
+
+func (r *RedisClient) StreamRead(ctx context.Context, stream string, lastID string, block time.Duration, count int64) ([]redis.XMessage, error) {
+	streams, err := r.client.XRead(ctx, &redis.XReadArgs{
+		Streams: []string{stream, lastID},
+		Block:   block,
+		Count:   count,
+	}).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	if len(streams) > 0 {
+		return streams[0].Messages, nil
+	}
+
+	return nil, nil
+}
+
+func (r *RedisClient) StreamTrim(ctx context.Context, stream string, maxLen int64) error {
+	return r.client.XTrimMaxLen(ctx, stream, maxLen).Err()
+}
