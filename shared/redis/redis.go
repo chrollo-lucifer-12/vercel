@@ -111,3 +111,8 @@ func (r *RedisClient) StreamRead(ctx context.Context, stream string, lastID stri
 func (r *RedisClient) StreamTrim(ctx context.Context, stream string, maxLen int64) error {
 	return r.client.XTrimMaxLen(ctx, stream, maxLen).Err()
 }
+
+func (r *RedisClient) Exists(ctx context.Context, key string) (bool, error) {
+	res, err := r.client.Exists(ctx, key).Result()
+	return res > 0, err
+}

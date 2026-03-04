@@ -222,3 +222,73 @@ func (h *ServerClient) getDeploymentHandler(w http.ResponseWriter, r *http.Reque
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
+
+func (h *ServerClient) getLiveLogs(w http.ResponseWriter, r *http.Request) {
+
+	deploymentId := strings.TrimPrefix(r.URL.Path, "/api/v1/deployment/logs/")
+	if deploymentId == "" {
+		http.Error(w, "deploymentId required", http.StatusBadRequest)
+		return
+	}
+
+	streamName := "deployment_logs:" + deploymentId
+
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Type")
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		http.Error(w, "Streaming unsupported!", http.StatusInternalServerError)
+		return
+	}
+
+	closeNotify := w.(http.CloseNotifier).CloseNotify()
+	ctx := r.Context()
+
+	lastID := r.URL.Query().Get("lastID")
+	if lastID == "" {
+		lastID = "0-0"
+	}
+
+	const lastLogs = 50
+	messages, _ := h.redis.LRange(ctx, streamName, -lastLogs, -1).Result()
+	for _, msg := range messages {
+		fmt.Fprintf(w, "data: %s\n\n", msg)
+		flusher.Flush()
+	}
+
+	for {
+		select {
+		case <-closeNotify:
+			fmt.Println("Client disconnected:", deploymentId)
+			return
+		default:
+			msgs, err := h.redis.StreamRead(ctx, streamName, lastID, 2*time.Second, 10)
+			if err != nil {
+				fmt.Println("Redis read error:", err)
+				time.Sleep(time.Second)
+				continue
+			}
+
+			if len(msgs) == 0 {
+				exists, _ := h.redis.Exists(ctx, streamName)
+				if exists == false {
+					time.Sleep(5 * time.Second)
+					return
+				}
+				continue
+			}
+
+			for _, msg := range msgs {
+				lastID = msg.ID
+				data := fmt.Sprintf("%v", msg.Values)
+				fmt.Fprintf(w, "data: %s\n\n", data)
+				flusher.Flush()
+			}
+		}
+	}
+}
