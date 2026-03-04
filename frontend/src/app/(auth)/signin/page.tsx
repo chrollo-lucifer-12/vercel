@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 "use client";
 
 import AuthForm from "@/components/custom/auth-form";

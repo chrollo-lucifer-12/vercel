@@ -35,7 +35,7 @@ const Overview = ({
               <Badge variant={"secondary"}>
                 <LinkIcon data-icon="inline-start" />
                 <Link
-                  href={`http://${subDomain}.${clientEnv.NEXT_PUBLIC_REQUEST_HANDLER}`}
+                  href={`https://${subDomain}.${clientEnv.NEXT_PUBLIC_REQUEST_HANDLER}`}
                 >
                   {subDomain}
                 </Link>

@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -17,7 +18,6 @@ import (
 )
 
 const (
-	PORT      = ":8000"
 	BASE_HOST = "https://swcxwcivbezgmunayqlf.supabase.co"
 	BASE_PATH = "/storage/v1/object/public/builds"
 )
@@ -164,7 +164,9 @@ func (s *ServerClient) Run(ctx context.Context) error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", s.handleRequest)
 
-	log.Println("Server running on", PORT)
+	port := os.Getenv("PORT")
 
-	return http.ListenAndServe(PORT, mux)
+	log.Println("Server running on", port)
+
+	return http.ListenAndServe(":"+port, mux)
 }

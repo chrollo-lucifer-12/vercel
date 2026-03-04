@@ -60,8 +60,10 @@ func (s *ServerClient) setupHTTP() {
 	mux := http.NewServeMux()
 	s.registerRoutes(mux)
 
+	port := os.Getenv("PORT")
+
 	s.server = &http.Server{
-		Addr:     ":9000",
+		Addr:     ":" + port,
 		Handler:  enableCORS(mux),
 		ErrorLog: logger,
 	}
