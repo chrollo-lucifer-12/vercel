@@ -2,8 +2,17 @@ import { Project } from "@/lib/types";
 import { Button } from "../ui/button";
 import { GithubLogoIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
+import CreateDeployment from "./create-deployment";
 
-const ProjectTitle = ({ name, gitUrl }: { name: string; gitUrl: string }) => {
+const ProjectTitle = ({
+  name,
+  gitUrl,
+  slug,
+}: {
+  name: string;
+  gitUrl: string;
+  slug: string;
+}) => {
   const router = useRouter();
   return (
     <div className="flex flex-row justify-between w-full">
@@ -19,6 +28,7 @@ const ProjectTitle = ({ name, gitUrl }: { name: string; gitUrl: string }) => {
           Repository
         </Button>
         <Button>Visit</Button>
+        <CreateDeployment slug={slug} />
       </div>
     </div>
   );

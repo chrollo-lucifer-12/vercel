@@ -33,4 +33,4 @@ jobs:
             -e SUPABASE_SECRET_KEY="${{ secrets.SUPABASE_SECRET_KEY }}" \
             -e REDIS_URL="${{ secrets.REDIS_URL }}"
             -e DSN="${{ secrets.DSN }}" \
-            sahil1107/builder-server:latest
+            sahil1107/build-server:latest

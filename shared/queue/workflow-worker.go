@@ -18,9 +18,14 @@ type WorkflowWorker struct {
 	workflowClient *workflow.WorkflowClient
 }
 
-func NewWorkflowWorker(ctx context.Context, token string) *WorkflowWorker {
+func NewWorkflowWorker(ctx context.Context, token string, redisAddr string) *WorkflowWorker {
+	opt, err := asynq.ParseRedisURI(redisAddr)
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
 	server := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: "127.0.0.1:6379"},
+		opt,
 		asynq.Config{
 			Concurrency: 10,
 			Queues: map[string]int{

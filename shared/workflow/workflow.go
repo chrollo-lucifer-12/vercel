@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/go-github/v59/github"
 	"golang.org/x/oauth2"
@@ -66,6 +67,8 @@ func (w *WorkflowClient) TriggerWorkflow(
 		cfg.WorkflowFile,
 		event,
 	)
+
+	fmt.Println(err)
 
 	return err
 }

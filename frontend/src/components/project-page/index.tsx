@@ -49,6 +49,7 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
       <ProjectTitle
         name={data?.Project.name!}
         gitUrl={data?.Project.git_url!}
+        slug={subdomain}
       />
       <Tabs
         value={tabValue || "overview"}

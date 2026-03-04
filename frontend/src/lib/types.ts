@@ -89,3 +89,9 @@ export type WebsiteAnalytics = {
   ip_address: string;
   referer: string;
 };
+
+export type CreateDeployment = {
+  status: string;
+  project_slug: string;
+  deployment_id: string;
+};

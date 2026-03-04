@@ -55,7 +55,7 @@ tasks:
       - yarn dev
     label: WEB
 
-  ew:
+  wr:
     dir: ./worker
     cmds:
       - go run .
@@ -94,6 +94,6 @@ tasks:
     deps:
       - as
       - fr
-      - ew
+      - wr
     parallel: true
     output: prefixed

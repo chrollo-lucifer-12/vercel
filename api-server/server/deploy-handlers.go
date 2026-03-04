@@ -112,14 +112,14 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "invalid request body: "+err.Error(), http.StatusBadRequest)
 		return
 	}
+	ctx := r.Context()
 
-	project, _, err := verifyDeployment(r.URL.Path, r, h.db)
+	project, err := h.db.GetProjectBySlug(ctx, req.ProjectSlug)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	ctx := r.Context()
-	depID, err := h.queueDeployment(ctx, project, req.UserEnv)
+	depID, err := h.queueDeployment(ctx, &project, req.UserEnv)
 	if err != nil {
 		if err == gorm.ErrInvalidData {
 			http.Error(w, "another deployment is running", http.StatusConflict)

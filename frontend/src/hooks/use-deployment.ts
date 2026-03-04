@@ -1,7 +1,11 @@
 import { TokenDetails } from "@/lib/types";
 import { useSession } from "./use-auth";
-import { useQuery } from "@tanstack/react-query";
-import { getDeployment, getDeployments } from "@/lib/axios/deployment";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  createDeployment,
+  getDeployment,
+  getDeployments,
+} from "@/lib/axios/deployment";
 
 export const useGetDeployments = (slug: string) => {
   const { data } = useSession();
@@ -13,6 +17,20 @@ export const useGetDeployments = (slug: string) => {
     refetchOnWindowFocus: false,
     queryFn: async () => {
       const res = await getDeployments(tokenData?.access_token!, slug);
+      return res;
+    },
+  });
+};
+
+export const useCreateDeployment = (slug: string) => {
+  console.log(slug);
+  const { data } = useSession();
+  const tokenData = data as TokenDetails;
+
+  return useMutation({
+    mutationKey: ["deployment", slug],
+    mutationFn: async () => {
+      const res = await createDeployment(tokenData?.access_token!, slug);
       return res;
     },
   });

@@ -20,9 +20,9 @@ type AnalyticsWorker struct {
 
 func NewAnalyticsWorker(ctx context.Context, dsn string, redisAddr string) *AnalyticsWorker {
 	db, _ := db.NewDB(dsn, ctx)
-
+	opt, _ := asynq.ParseRedisURI(redisAddr)
 	server := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: ""},
+		opt,
 		asynq.Config{
 			Concurrency: 5,
 			Queues: map[string]int{

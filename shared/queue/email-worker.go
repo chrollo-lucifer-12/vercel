@@ -20,8 +20,10 @@ type EmailWorker struct {
 
 func NewEmailWorkerServer(redisAddr string, apiKey string) *EmailWorker {
 
+	opt, _ := asynq.ParseRedisURI(redisAddr)
+
 	server := asynq.NewServer(
-		asynq.RedisClientOpt{Addr: "127.0.0.1:6379"},
+		opt,
 		asynq.Config{
 			Concurrency: 10,
 			Queues: map[string]int{

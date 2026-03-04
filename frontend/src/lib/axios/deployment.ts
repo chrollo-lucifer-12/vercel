@@ -1,5 +1,5 @@
 import { clientEnv } from "../env/client";
-import { Deployment, DeploymentWithLogs } from "../types";
+import { CreateDeployment, Deployment, DeploymentWithLogs } from "../types";
 import { axiosInstance } from "./axios";
 
 export const getDeployments = async (accessToken: string, slug: string) => {
@@ -38,5 +38,24 @@ export const getDeployment = async (
   } catch (err) {
     console.error(err);
     throw err instanceof Error ? err : new Error("Failed to get deployment");
+  }
+};
+
+export const createDeployment = async (accessToken: string, slug: string) => {
+  console.log(slug);
+  try {
+    const res = await axiosInstance.post<CreateDeployment>(
+      `${clientEnv.NEXT_PUBLIC_CREATE_DEPLOYMENT}`,
+      { user_env: "", project_slug: slug },
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      },
+    );
+    return res.data;
+  } catch (err) {
+    console.error(err);
+    throw err instanceof Error ? err : new Error("Failed to create deployment");
   }
 };

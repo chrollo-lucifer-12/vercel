@@ -13,7 +13,8 @@ import (
 )
 
 type DeployRequest struct {
-	UserEnv string `json:"user_env"`
+	UserEnv     string `json:"user_env"`
+	ProjectSlug string `json:"project_slug"`
 }
 
 type ProjectRequest struct {
