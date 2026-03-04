@@ -90,7 +90,7 @@ func (q *QueueClient) NewWorkflowTask(payload WorkflowJob) (*asynq.Task, error) 
 	_, err = q.client.Enqueue(
 		task,
 		asynq.Queue("workflows"),
-		asynq.MaxRetry(3),
+		asynq.MaxRetry(1),
 	)
 
 	if err != nil {

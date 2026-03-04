@@ -12,7 +12,7 @@ on:
       deploymentId:
         required: true
       userEnv:
-        required: true
+        required: false
 
 jobs:
   build:
@@ -22,7 +22,6 @@ jobs:
       - name: Run container and stream logs
         run: |
           docker run --rm \
-            -e USER_ENV="${{ github.event.inputs.userEnv }}" \
             -e DEPLOYMENT_ID="${{ github.event.inputs.deploymentId }}" \
             -e SLUG="${{ github.event.inputs.projectSlug }}" \
             -e GIT_REPOSITORY_URL="${{ github.event.inputs.gitURL }}" \

@@ -35,9 +35,11 @@ const BuildDialogSkeleton = () => {
 
 const BuildDialog = ({
   deploymentId,
+  status,
   children,
 }: {
   deploymentId: string;
+  status: string;
   children: ReactNode;
 }) => {
   const [open, setOpen] = useState(false);

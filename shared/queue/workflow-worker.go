@@ -19,6 +19,7 @@ type WorkflowWorker struct {
 }
 
 func NewWorkflowWorker(ctx context.Context, token string, redisAddr string) *WorkflowWorker {
+	fmt.Println("TOKEN LENGTH:", len(token))
 	opt, err := asynq.ParseRedisURI(redisAddr)
 	if err != nil {
 		fmt.Println(err)

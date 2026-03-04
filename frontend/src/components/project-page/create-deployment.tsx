@@ -9,6 +9,7 @@ import {
   DialogTrigger,
 } from "../ui/dialog";
 import { useEffect, useRef, useState } from "react";
+import LogsDisplay from "./logs-display";
 
 const CreateDeployment = ({ slug }: { slug: string }) => {
   console.log(slug);
@@ -54,6 +55,7 @@ const CreateDeployment = ({ slug }: { slug: string }) => {
             Create a new deployment for your project and see live logs.
           </DialogDescription>
         </DialogHeader>
+        {/*<LogsDisplay logs={logs} />*/}
         <Button
           onClick={() => {
             if (!slug) return;

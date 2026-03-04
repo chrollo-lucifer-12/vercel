@@ -51,12 +51,10 @@ func (w *WorkflowClient) TriggerWorkflow(
 		Ref: cfg.Ref,
 		Inputs: map[string]interface{}{
 			"gitURL":       cfg.Inputs.GitURL,
-			"apiURL":       cfg.Inputs.ApiURL,
-			"apiKey":       cfg.Inputs.ApiKey,
 			"bucketId":     cfg.Inputs.BucketID,
 			"projectSlug":  cfg.Inputs.ProjectSlug,
 			"deploymentId": cfg.Inputs.DeploymentID,
-			"userEnv":      cfg.Inputs.UserEnv,
+			"userEnv":      "test",
 		},
 	}
 

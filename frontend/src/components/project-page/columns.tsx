@@ -43,14 +43,11 @@ export const columns: ColumnDef<Deployment>[] = [
     header: "Logs",
     cell: ({ row }) => {
       const id = row.original.id;
+      const status = row.original.status;
       const queryClient = getQueryClient();
       return (
-        <BuildDialog deploymentId={id}>
-          <Button
-            onClick={async (e) => {
-              await queryClient.prefetchQuery({ queryKey: ["deployment", id] });
-            }}
-          >
+        <BuildDialog deploymentId={id} status={status}>
+          <Button>
             <DotsThreeCircleIcon />
           </Button>
         </BuildDialog>
