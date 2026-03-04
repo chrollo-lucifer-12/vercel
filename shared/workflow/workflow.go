@@ -78,13 +78,12 @@ type WorkflowClient struct {
 
 func NewWorkflowClient(
 	github GithubActionsClient,
-	cache CacheDeleter,
 	validator ConfigValidator,
 	builder EventBuilder,
 ) *WorkflowClient {
 	return &WorkflowClient{
-		github:    github,
-		cache:     cache,
+		github: github,
+
 		validator: validator,
 		builder:   builder,
 	}

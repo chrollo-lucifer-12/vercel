@@ -6,7 +6,7 @@ import (
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
-	"github.com/chrollo-lucifer-12/shared/mail"
+	"github.com/chrollo-lucifer-12/shared/queue"
 	"github.com/chrollo-lucifer-12/shared/redis"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 	"github.com/google/uuid"
@@ -45,8 +45,8 @@ type ServerClient struct {
 	db      *db.DB
 	auth    *auth.AuthService
 	server  *http.Server
-	mail    *mail.MailClient
 	redis   *redis.RedisClient
+	queue   *queue.QueueClient
 }
 
 type route struct {

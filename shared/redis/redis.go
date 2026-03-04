@@ -55,3 +55,15 @@ func (r *RedisClient) DeleteByPattern(ctx context.Context, pattern string) error
 	}
 	return nil
 }
+
+func (r *RedisClient) Enqueue(ctx context.Context, queue string, payload string) error {
+	return r.client.LPush(ctx, queue, payload).Err()
+}
+
+func (r *RedisClient) Dequeue(ctx context.Context, queue string) (string, error) {
+	result, err := r.client.BRPop(ctx, 0*time.Second, queue).Result()
+	if err != nil {
+		return "", err
+	}
+	return result[1], nil
+}

@@ -2,15 +2,12 @@ package server
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
-	"github.com/chrollo-lucifer-12/shared/cache"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/storage"
 )
@@ -28,14 +25,13 @@ type CacheEntry struct {
 }
 
 type ServerClient struct {
-	cache   *cache.CacheStore
 	db      *db.DB
 	storage *storage.S3Storage
 }
 
-func NewServerClient(cache *cache.CacheStore, db *db.DB, storage *storage.S3Storage) *ServerClient {
+func NewServerClient(db *db.DB, storage *storage.S3Storage) *ServerClient {
 	return &ServerClient{
-		cache:   cache,
+		//	cache:   cache,
 		db:      db,
 		storage: storage,
 	}
@@ -78,34 +74,34 @@ func (s *ServerClient) handleRequest(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 
-	if cachedJSON, err := s.cache.Get(ctx, objectKey); err == nil && len(cachedJSON) > 0 {
+	// if cachedJSON, err := s.cache.Get(ctx, objectKey); err == nil && len(cachedJSON) > 0 {
 
-		var cachedEntry CacheEntry
-		if err := json.Unmarshal(cachedJSON, &cachedEntry); err == nil {
-			for k, vv := range cachedEntry.Header {
-				for _, v := range vv {
-					w.Header().Add(k, v)
-				}
-			}
-			w.WriteHeader(cachedEntry.Status)
-			_, _ = w.Write([]byte(cachedEntry.Body))
+	// 	var cachedEntry CacheEntry
+	// 	if err := json.Unmarshal(cachedJSON, &cachedEntry); err == nil {
+	// 		for k, vv := range cachedEntry.Header {
+	// 			for _, v := range vv {
+	// 				w.Header().Add(k, v)
+	// 			}
+	// 		}
+	// 		w.WriteHeader(cachedEntry.Status)
+	// 		_, _ = w.Write([]byte(cachedEntry.Body))
 
-			fmt.Printf("Served from DB cache: %s/%s\n", subdomain, path)
+	// 		fmt.Printf("Served from DB cache: %s/%s\n", subdomain, path)
 
-			responseTime := int(time.Since(start).Milliseconds())
-			s.trackRequest(
-				subdomain,
-				path,
-				r.Method,
-				cachedEntry.Status,
-				responseTime,
-				r.UserAgent(),
-				strings.Split(r.RemoteAddr, ":")[0],
-				r.Referer(),
-			)
-			return
-		}
-	}
+	// 		responseTime := int(time.Since(start).Milliseconds())
+	// 		s.trackRequest(
+	// 			subdomain,
+	// 			path,
+	// 			r.Method,
+	// 			cachedEntry.Status,
+	// 			responseTime,
+	// 			r.UserAgent(),
+	// 			strings.Split(r.RemoteAddr, ":")[0],
+	// 			r.Referer(),
+	// 		)
+	// 		return
+	// 	}
+	// }
 
 	reader, err := s.storage.GetObject(ctx, objectKey)
 	if err != nil {
@@ -140,18 +136,18 @@ func (s *ServerClient) handleRequest(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cachedEntry := CacheEntry{
-		Status: http.StatusOK,
-		Header: w.Header().Clone(),
-		Body:   responseBuffer.String(),
-	}
+	// cachedEntry := CacheEntry{
+	// 	Status: http.StatusOK,
+	// 	Header: w.Header().Clone(),
+	// 	Body:   responseBuffer.String(),
+	// }
 
-	cachedJSON, err := json.Marshal(cachedEntry)
-	if err == nil {
-		if err := s.cache.Set(ctx, objectKey, cachedJSON); err != nil {
-			log.Printf("Failed to cache %s/%s: %v", subdomain, path, err)
-		}
-	}
+	// cachedJSON, err := json.Marshal(cachedEntry)
+	// if err == nil {
+	// 	if err := s.cache.Set(ctx, objectKey, cachedJSON); err != nil {
+	// 		log.Printf("Failed to cache %s/%s: %v", subdomain, path, err)
+	// 	}
+	// }
 
 	responseTime := int(time.Since(start).Milliseconds())
 	s.trackRequest(

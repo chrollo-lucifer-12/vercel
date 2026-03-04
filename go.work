@@ -6,4 +6,5 @@ use (
 	./migrate
 	./request-handler
 	./shared
+	./worker
 )

@@ -5,10 +5,9 @@ import (
 	"log"
 
 	"github.com/chrollo-lucifer-12/api-server/server"
-	"github.com/chrollo-lucifer-12/shared/cache"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/env"
-	"github.com/chrollo-lucifer-12/shared/mail"
+	"github.com/chrollo-lucifer-12/shared/queue"
 	"github.com/chrollo-lucifer-12/shared/redis"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 )
@@ -24,26 +23,22 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
-	cacheStore := cache.NewCacheStore(db)
-
 	githubToken := env.GithubToken.GetValue()
 	factory := workflow.NewDefaultGithubClientFactory()
 	githubClient := factory.NewClient(ctx, githubToken)
-	mailClient := mail.NewMailClient(env.ResendApiKey.GetValue())
 	redisClient := redis.NewRedisClient(env.RedisUrl.GetValue())
+	queueClient := queue.NewAsynqClient(env.RedisUrl.GetValue())
 
 	validator := workflow.NewDefaultConfigValidator()
 	builder := workflow.NewDefaultEventBuilder()
 
 	w := workflow.NewWorkflowClient(
 		githubClient,
-		cacheStore,
 		validator,
 		builder,
 	)
 
-	h, err := server.NewServerClient(w, db, redisClient, mailClient)
+	h, err := server.NewServerClient(w, db, redisClient, queueClient)
 	if err != nil {
 		log.Fatal(err)
 		return

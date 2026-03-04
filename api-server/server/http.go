@@ -13,12 +13,12 @@ import (
 
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/shared/db"
-	"github.com/chrollo-lucifer-12/shared/mail"
+	"github.com/chrollo-lucifer-12/shared/queue"
 	"github.com/chrollo-lucifer-12/shared/redis"
 	"github.com/chrollo-lucifer-12/shared/workflow"
 )
 
-func NewServerClient(wClient *workflow.WorkflowClient, dbClient *db.DB, redisClient *redis.RedisClient, mailClient *mail.MailClient) (*ServerClient, error) {
+func NewServerClient(wClient *workflow.WorkflowClient, dbClient *db.DB, redisClient *redis.RedisClient, queueClient *queue.QueueClient) (*ServerClient, error) {
 
 	if wClient == nil {
 		return nil, fmt.Errorf("workflow client required")
@@ -34,8 +34,8 @@ func NewServerClient(wClient *workflow.WorkflowClient, dbClient *db.DB, redisCli
 		wClient: wClient,
 		db:      dbClient,
 		auth:    authService,
-		mail:    mailClient,
 		redis:   redisClient,
+		queue:   queueClient,
 	}
 
 	server.setupHTTP()

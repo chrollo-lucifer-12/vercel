@@ -55,6 +55,12 @@ tasks:
       - yarn dev
     label: WEB
 
+  ew:
+    dir: ./worker
+    cmds:
+      - go run .
+    label: WORKER
+
   build-server:
     cmds:
       - docker compose down && docker compose up -d
@@ -88,5 +94,6 @@ tasks:
     deps:
       - as
       - fr
+      - ew
     parallel: true
     output: prefixed

@@ -12,6 +12,7 @@ import (
 	"github.com/chrollo-lucifer-12/api-server/auth"
 	"github.com/chrollo-lucifer-12/api-server/server/dto"
 	"github.com/chrollo-lucifer-12/shared/db"
+	"github.com/chrollo-lucifer-12/shared/queue"
 	"github.com/chrollo-lucifer-12/shared/utils"
 )
 
@@ -106,18 +107,14 @@ func (h *ServerClient) createVerificationMail(w http.ResponseWriter, r *http.Req
 
 	verifyLink := "http://localhost:9000/auth/verify-email?token=" + token
 
-	err = h.mail.SendMail(
-		ctx,
-		"Acme <onboarding@resend.dev>",
-		user.Email,
-		"Verify your email",
-		"<p>Click below to verify:</p><a href='"+verifyLink+"'>Verify Email</a>",
-	)
-
-	if err != nil {
-		http.Error(w, "Failed to send mail", http.StatusInternalServerError)
-		return
+	job := queue.EmailJob{
+		From:    "Acme <onboarding@resend.dev>",
+		To:      user.Email,
+		Subject: "Verify your email",
+		Html:    "<p>Click below to verify:</p><a href='" + verifyLink + "'>Verify Email</a>",
 	}
+
+	h.queue.NewEmailDeliveryTask(job)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
@@ -179,11 +176,14 @@ func (h *ServerClient) registerUserHandler(w http.ResponseWriter, r *http.Reques
 
 	verifyLink := "http://localhost:9000/auth/verify-email" + "?token=" + newToken.Token
 
-	err = h.mail.SendMail(ctx, "Acme <onboarding@resend.dev>", u.Email, "Email verification", "<p>"+verifyLink+"</p>")
-	if err != nil {
-		http.Error(w, "Error sending mail: "+err.Error(), http.StatusInternalServerError)
-		return
+	job := queue.EmailJob{
+		From:    "Acme <onboarding@resend.dev>",
+		To:      newUser.Email,
+		Subject: "Verify your email",
+		Html:    "<p>Click below to verify:</p><a href='" + verifyLink + "'>Verify Email</a>",
 	}
+
+	h.queue.NewEmailDeliveryTask(job)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -319,6 +319,16 @@ func (h *ServerClient) getUserProfileHandler(w http.ResponseWriter, r *http.Requ
 	claims := r.Context().Value(authKey{}).(*auth.UserClaims)
 
 	ctx := r.Context()
+
+	cacheKey := claims.Email
+	cachedData, err := h.redis.Get(ctx, cacheKey)
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(cachedData))
+		return
+	}
+
 	user, err := h.db.GetUser(ctx, claims.Email)
 
 	if err != nil {
