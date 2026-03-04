@@ -21,16 +21,16 @@ func main() {
 	endPoint := os.Getenv("SUPABASE_ENDPOINT")
 	supabaseAccessKey := os.Getenv("SUPABASE_ACCESS_KEY")
 	supabaseSecret := os.Getenv("SUPABASE_SECRET_KEY")
-	getUserEnv := os.Getenv("USER_ENV")
+	//	getUserEnv := os.Getenv("USER_ENV")
 	bucketID := os.Getenv("BUCKET_ID")
 	deploymentId := os.Getenv("DEPLOYMENT_ID")
 	redisURL := os.Getenv("REDIS_URL")
 	deploymentIdUUID, _ := uuid.Parse(deploymentId)
 	streamName := "deployment_logs:" + deploymentId
-	userEnv, err := utils.ParseUserEnv(getUserEnv)
-	if err != nil {
-		panic(err)
-	}
+	// userEnv, err := utils.ParseUserEnv(getUserEnv)
+	// if err != nil {
+	// 	panic(err)
+	// }
 
 	d, err := db.NewDB(dsn, ctx)
 	if err != nil {
@@ -52,11 +52,11 @@ func main() {
 		}
 	}
 
-	if err := utils.WriteEnvFile("/home/app/output", userEnv); err != nil {
-		updateDeploymentFunc("FAILED")
-		fmt.Println("Write env file error:", err)
-		return
-	}
+	// if err := utils.WriteEnvFile("/home/app/output", userEnv); err != nil {
+	// 	updateDeploymentFunc("FAILED")
+	// 	fmt.Println("Write env file error:", err)
+	// 	return
+	// }
 
 	s, err := storage.NewS3Storage(endPoint, supabaseAccessKey, supabaseSecret, region, bucketID)
 	if err != nil {
