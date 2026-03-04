@@ -5,39 +5,12 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/chrollo-lucifer-12/build-server/logs"
 	"github.com/chrollo-lucifer-12/shared/db"
+	"github.com/chrollo-lucifer-12/shared/redis"
 	"github.com/chrollo-lucifer-12/shared/storage"
 	"github.com/chrollo-lucifer-12/shared/utils"
 	"github.com/google/uuid"
 )
-
-func StreamLogsToDB(
-	ctx context.Context,
-	d *db.DB,
-	logChan <-chan db.LogEvent,
-	done chan<- struct{},
-) {
-
-	for {
-		select {
-		case logEvent, ok := <-logChan:
-			if !ok {
-				done <- struct{}{}
-				return
-			}
-			fmt.Println(logEvent)
-			err := d.CreateLogEvents(ctx, &[]db.LogEvent{logEvent})
-			if err != nil {
-				fmt.Println("log insert failed:", err)
-			}
-
-		case <-ctx.Done():
-			done <- struct{}{}
-			return
-		}
-	}
-}
 
 func main() {
 	ctx := context.Background()
@@ -51,10 +24,9 @@ func main() {
 	getUserEnv := os.Getenv("USER_ENV")
 	bucketID := os.Getenv("BUCKET_ID")
 	deploymentId := os.Getenv("DEPLOYMENT_ID")
+	redisURL := os.Getenv("REDIS_URL")
 	deploymentIdUUID, _ := uuid.Parse(deploymentId)
-	dispatcher := logs.NewLogDispatcher(200)
-	done := make(chan struct{})
-
+	streamName := "deployment_logs:" + deploymentId
 	userEnv, err := utils.ParseUserEnv(getUserEnv)
 	if err != nil {
 		panic(err)
@@ -65,11 +37,20 @@ func main() {
 		panic(err)
 	}
 
+	redisClient := redis.NewRedisClient(redisURL)
+
 	updateDeploymentFunc := func(status string) {
 		d.UpdateDeployment(ctx, deploymentIdUUID, db.Deployment{Status: status})
 	}
 
-	go StreamLogsToDB(ctx, d, dispatcher.Channel(), done)
+	logger := func(message string) {
+		_, err := redisClient.StreamAdd(ctx, streamName, map[string]interface{}{
+			"message": message,
+		})
+		if err != nil {
+			fmt.Println("Failed to write log to Redis:", err)
+		}
+	}
 
 	if err := utils.WriteEnvFile("/home/app/output", userEnv); err != nil {
 		updateDeploymentFunc("FAILED")
@@ -84,39 +65,31 @@ func main() {
 		return
 	}
 
-	dispatcher.Push(deploymentIdUUID, "Running npm install/build...")
+	logger("Running npm install/build...")
 	outputDir := utils.GetPath([]string{"home", "app", "output"})
 
-	err = RunNpmCommand(ctx, outputDir, dispatcher, deploymentIdUUID, "install")
+	err = RunNpmCommand(ctx, outputDir, streamName, logger, "install")
 	if err != nil {
-		dispatcher.Push(deploymentIdUUID, "npm install failed: "+err.Error())
-		dispatcher.Close()
-		<-done
+		logger("npm install failed: " + err.Error())
 		updateDeploymentFunc("FAILED")
 		return
 	}
 
-	err = RunNpmCommand(ctx, outputDir, dispatcher, deploymentIdUUID, "run", "build")
+	err = RunNpmCommand(ctx, outputDir, streamName, logger, "run", "build")
 	if err != nil {
-		dispatcher.Push(deploymentIdUUID, "npm build failed: "+err.Error())
-		dispatcher.Close()
-		<-done
+		logger("npm build failed: " + err.Error())
 		updateDeploymentFunc("FAILED")
 		return
 	}
 
-	if err := s.UploadDirectory(ctx, "/home/app/output/dist", slug, dispatcher, deploymentIdUUID); err != nil {
+	if err := s.UploadDirectory(ctx, "/home/app/output/dist", slug, deploymentIdUUID, logger); err != nil {
 		fmt.Println("build upload failed: " + err.Error())
-		dispatcher.Push(deploymentIdUUID, "build upload failed: "+err.Error())
-		dispatcher.Close()
-		<-done
+		logger("build upload failed: " + err.Error())
 		updateDeploymentFunc("FAILED")
 		return
 	}
 
-	dispatcher.Push(deploymentIdUUID, "Build successful!")
-	dispatcher.Close()
-	<-done
+	logger("build successful!")
 
 	updateDeploymentFunc("SUCCESS")
 
