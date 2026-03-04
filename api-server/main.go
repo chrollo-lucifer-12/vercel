@@ -9,7 +9,6 @@ import (
 	"github.com/chrollo-lucifer-12/shared/env"
 	"github.com/chrollo-lucifer-12/shared/queue"
 	"github.com/chrollo-lucifer-12/shared/redis"
-	"github.com/chrollo-lucifer-12/shared/workflow"
 )
 
 func main() {
@@ -23,22 +22,10 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	githubToken := env.GithubToken.GetValue()
-	factory := workflow.NewDefaultGithubClientFactory()
-	githubClient := factory.NewClient(ctx, githubToken)
 	redisClient := redis.NewRedisClient(env.RedisUrl.GetValue())
 	queueClient := queue.NewAsynqClient(env.RedisUrl.GetValue())
 
-	validator := workflow.NewDefaultConfigValidator()
-	builder := workflow.NewDefaultEventBuilder()
-
-	w := workflow.NewWorkflowClient(
-		githubClient,
-		validator,
-		builder,
-	)
-
-	h, err := server.NewServerClient(w, db, redisClient, queueClient)
+	h, err := server.NewServerClient(db, redisClient, queueClient)
 	if err != nil {
 		log.Fatal(err)
 		return

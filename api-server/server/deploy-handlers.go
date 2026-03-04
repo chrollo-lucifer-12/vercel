@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,8 +13,8 @@ import (
 	"github.com/chrollo-lucifer-12/api-server/server/dto"
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/env"
+	"github.com/chrollo-lucifer-12/shared/queue"
 	"github.com/chrollo-lucifer-12/shared/utils"
-	"github.com/chrollo-lucifer-12/shared/workflow"
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
@@ -70,8 +69,6 @@ func verifyDeployment(path string, r *http.Request, db *db.DB) (*db.Project, *db
 }
 
 func (h *ServerClient) queueDeployment(ctx context.Context, project *db.Project, userEnv string) (uuid.UUID, error) {
-	apiUrl := env.SupabaseUrl.GetValue()
-	apiKey := env.SupabaseSecret.GetValue()
 	d, err := gorm.G[db.Deployment](h.db.Raw()).
 		Where("project_id = ?", project.ID).
 		Where("status IN ?", []string{"QUEUED", "PENDING"}).
@@ -83,38 +80,28 @@ func (h *ServerClient) queueDeployment(ctx context.Context, project *db.Project,
 		return uuid.Nil, gorm.ErrInvalidData
 	}
 
-	tx := h.db.Raw().Begin()
-	if tx.Error != nil {
-		return uuid.Nil, tx.Error
-	}
-
 	dep := &db.Deployment{
 		ProjectID: project.ID,
 		Status:    "QUEUED",
 	}
 
-	if err := tx.Create(dep).Error; err != nil {
-		tx.Rollback()
-		return uuid.Nil, err
-	}
-	if err := tx.Commit().Error; err != nil {
-		tx.Rollback()
+	err = h.db.CreateDeployment(ctx, dep)
+	if err != nil {
 		return uuid.Nil, err
 	}
 
-	go func() {
-		if err := h.wClient.TriggerWorkflow(ctx, workflow.TriggerWorkflowConfig{Owner: "chrollo-lucifer-12", Repo: "vercel", WorkflowFile: "build.yml", Ref: "main",
-			Inputs: workflow.Input{GitURL: project.GitUrl, ApiURL: apiUrl, ApiKey: apiKey, BucketID: "builds", ProjectSlug: project.SubDomain + strconv.Itoa(dep.Sequence), DeploymentID: dep.ID.String(), UserEnv: userEnv}}); err != nil {
-			_ = h.db.Raw().Model(&db.Deployment{}).
-				Where("id = ?", dep.ID).
-				Update("status", "FAILED")
-			log.Println("failed to trigger workflow:", err)
-		} else {
-			_ = h.db.Raw().Model(&db.Deployment{}).
-				Where("id = ?", dep.ID).
-				Update("status", "PENDING")
-		}
-	}()
+	h.queue.NewWorkflowTask(queue.WorkflowJob{
+		GithubToken:  env.GithubToken.GetValue(),
+		Owner:        "chrollo-lucifer-12",
+		Repo:         "vercel",
+		Workflow:     "build.yml",
+		Ref:          "main",
+		GitURL:       project.GitUrl,
+		BucketID:     "builds",
+		ProjectSlug:  project.SubDomain + strconv.Itoa(dep.Sequence),
+		DeploymentID: dep.ID.String(),
+		UserEnv:      userEnv,
+	})
 
 	return dep.ID, nil
 }

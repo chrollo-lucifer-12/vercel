@@ -8,7 +8,6 @@ import (
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/queue"
 	"github.com/chrollo-lucifer-12/shared/redis"
-	"github.com/chrollo-lucifer-12/shared/workflow"
 	"github.com/google/uuid"
 	"gorm.io/datatypes"
 )
@@ -41,12 +40,11 @@ type authKey struct{}
 type Middleware func(http.Handler) http.Handler
 
 type ServerClient struct {
-	wClient *workflow.WorkflowClient
-	db      *db.DB
-	auth    *auth.AuthService
-	server  *http.Server
-	redis   *redis.RedisClient
-	queue   *queue.QueueClient
+	db     *db.DB
+	auth   *auth.AuthService
+	server *http.Server
+	redis  *redis.RedisClient
+	queue  *queue.QueueClient
 }
 
 type route struct {
