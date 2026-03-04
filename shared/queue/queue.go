@@ -51,7 +51,7 @@ func (q *QueueClient) NewEmailDeliveryTask(payload EmailJob) (*asynq.Task, error
 
 	fmt.Println("added new task", task)
 
-	_, err = q.client.Enqueue(task, asynq.Queue("emails"), asynq.MaxRetry(2))
+	_, err = q.client.Enqueue(task, asynq.Queue("emails"), asynq.MaxRetry(1))
 
 	return task, nil
 }
@@ -67,7 +67,7 @@ func (q *QueueClient) NewAnalyticsTask(analytics db.WebsiteAnalytics) (*asynq.Ta
 	_, err = q.client.Enqueue(
 		task,
 		asynq.Queue("analytics"),
-		asynq.MaxRetry(3),
+		asynq.MaxRetry(1),
 	)
 
 	if err != nil {
