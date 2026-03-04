@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -266,4 +267,17 @@ func (d *DB) GetAnalytics(
 
 func (d *DB) CreateAnalytics(ctx context.Context, w *WebsiteAnalytics) error {
 	return create(ctx, d.db, w)
+}
+
+func (d *DB) CreateAnalyticsBatch(ctx context.Context, records []WebsiteAnalytics) error {
+	if len(records) == 0 {
+		return nil
+	}
+
+	if err := d.db.WithContext(ctx).CreateInBatches(records, 1000).Error; err != nil {
+		log.Println("Failed to insert analytics batch:", err)
+		return err
+	}
+
+	return nil
 }

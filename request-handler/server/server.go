@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/chrollo-lucifer-12/shared/db"
+	"github.com/chrollo-lucifer-12/shared/queue"
 	"github.com/chrollo-lucifer-12/shared/redis"
 	"github.com/chrollo-lucifer-12/shared/storage"
 )
@@ -31,13 +32,15 @@ type ServerClient struct {
 	db      *db.DB
 	storage *storage.S3Storage
 	rd      *redis.RedisClient
+	qu      *queue.QueueClient
 }
 
-func NewServerClient(db *db.DB, storage *storage.S3Storage, rd *redis.RedisClient) *ServerClient {
+func NewServerClient(db *db.DB, storage *storage.S3Storage, rd *redis.RedisClient, qu *queue.QueueClient) *ServerClient {
 	return &ServerClient{
 		db:      db,
 		storage: storage,
 		rd:      rd,
+		qu:      qu,
 	}
 }
 
@@ -52,15 +55,7 @@ func (s *ServerClient) trackRequest(subdomain, path, method string, statusCode i
 		IPAddress:      ipAddress,
 		Referer:        referer,
 	}
-
-	go func() {
-		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		if err := s.db.CreateAnalytics(bgCtx, &request); err != nil {
-			log.Printf("Failed to track request for %s%s: %v", subdomain, path, err)
-		}
-	}()
+	s.qu.NewAnalyticsTask(request)
 }
 
 func (s *ServerClient) handleRequest(w http.ResponseWriter, r *http.Request) {

@@ -34,6 +34,18 @@ func (r *RedisClient) Del(ctx context.Context, key string) {
 	r.client.Del(ctx, key)
 }
 
+func (r *RedisClient) RPush(ctx context.Context, key string, value interface{}) *redis.IntCmd {
+	return r.client.RPush(ctx, key, value)
+}
+
+func (r *RedisClient) LRange(ctx context.Context, key string, start int64, stop int64) *redis.StringSliceCmd {
+	return r.client.LRange(ctx, key, start, stop)
+}
+
+func (r *RedisClient) LTrim(ctx context.Context, key string, start int64, stop int64) *redis.StatusCmd {
+	return r.client.LTrim(ctx, key, start, stop)
+}
+
 func (r *RedisClient) DeleteByPattern(ctx context.Context, pattern string) error {
 	var cursor uint64
 	for {

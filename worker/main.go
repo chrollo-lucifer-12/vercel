@@ -13,7 +13,9 @@ func main() {
 
 	emailWorker := queue.NewEmailWorkerServer(env.RedisUrl.GetValue(), env.ResendApiKey.GetValue())
 	workflowWorker := queue.NewWorkflowWorker(ctx, env.GithubToken.GetValue())
+	analyticsWorker := queue.NewAnalyticsWorker(ctx, env.Dsn.GetValue(), env.RedisUrl.GetValue())
 
 	go emailWorker.Start()
 	go workflowWorker.Start()
+	go analyticsWorker.Start()
 }

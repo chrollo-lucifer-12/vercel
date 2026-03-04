@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/hibiken/asynq"
 )
 
@@ -51,6 +52,27 @@ func (q *QueueClient) NewEmailDeliveryTask(payload EmailJob) (*asynq.Task, error
 	fmt.Println("added new task", task)
 
 	_, err = q.client.Enqueue(task, asynq.Queue("emails"), asynq.MaxRetry(2))
+
+	return task, nil
+}
+
+func (q *QueueClient) NewAnalyticsTask(analytics db.WebsiteAnalytics) (*asynq.Task, error) {
+	data, err := json.Marshal(analytics)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add analytics: %w", err)
+	}
+
+	task := asynq.NewTask("analytics:track", data)
+
+	_, err = q.client.Enqueue(
+		task,
+		asynq.Queue("analytics"),
+		asynq.MaxRetry(3),
+	)
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to add analytics: %w", err)
+	}
 
 	return task, nil
 }
