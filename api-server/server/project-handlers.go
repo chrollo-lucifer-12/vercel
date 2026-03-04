@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -48,6 +49,11 @@ func (h *ServerClient) createProjectHandler(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	pattern := fmt.Sprintf("projects:user:%s:*", userID)
+	if err := h.redis.DeleteByPattern(ctx, pattern); err != nil {
+		log.Println("cache invalidation error:", err)
+	}
+
 	response := dto.ToCreateProjectResposne(project)
 
 	w.WriteHeader(http.StatusCreated)
@@ -79,6 +85,23 @@ func (h *ServerClient) getAllProjectsHandler(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
+	cacheKey := fmt.Sprintf(
+		"projects:user:%s:name:%s:git:%s:limit:%d:offset:%d",
+		userID,
+		name,
+		gitURL,
+		limit,
+		offset,
+	)
+
+	cached, err := h.redis.Get(ctx, cacheKey)
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(cached))
+		return
+	}
+
 	projects, err := h.db.GetAllProjects(ctx, userID, name, gitURL, limit, offset)
 	if err != nil {
 		http.Error(w, "error getting projects: "+err.Error(), http.StatusInternalServerError)
@@ -89,6 +112,9 @@ func (h *ServerClient) getAllProjectsHandler(w http.ResponseWriter, r *http.Requ
 	for _, project := range projects {
 		p = append(p, dto.ToCreateProjectResposne(project))
 	}
+
+	jsonData, _ := json.Marshal(p)
+	h.redis.Set(ctx, cacheKey, jsonData, 30*time.Minute)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -104,6 +130,15 @@ func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	ctx := r.Context()
+	cacheKey := fmt.Sprintf("project:slug:%s", path)
+
+	cached, err := h.redis.Get(ctx, cacheKey)
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(cached))
+		return
+	}
 
 	projectRes, err := h.db.GetProjectBySlug(ctx, path)
 	if err != nil {
@@ -118,6 +153,10 @@ func (h *ServerClient) getProjectHandler(w http.ResponseWriter, r *http.Request)
 	}
 
 	response := dto.ToGetProjectWithDeployment(projectRes, deployment)
+
+	jsonData, _ := json.Marshal(response)
+
+	h.redis.Set(ctx, cacheKey, jsonData, 5*time.Minute)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -158,8 +197,6 @@ func (h *ServerClient) getProjectAnalytics(w http.ResponseWriter, r *http.Reques
 
 	ctx := r.Context()
 
-	project, err := h.db.GetProjectBySlug(ctx, path)
-
 	query := r.URL.Query()
 	fromStr := query.Get("from")
 	toStr := query.Get("to")
@@ -171,6 +208,7 @@ func (h *ServerClient) getProjectAnalytics(w http.ResponseWriter, r *http.Reques
 		t, err := time.Parse("2006-01-02", fromStr)
 		if err != nil {
 			http.Error(w, "invalid from date", http.StatusBadRequest)
+			return
 		}
 		fromTime = &t
 	}
@@ -178,19 +216,54 @@ func (h *ServerClient) getProjectAnalytics(w http.ResponseWriter, r *http.Reques
 	if toStr != "" {
 		t, err := time.Parse("2006-01-02", toStr)
 		if err != nil {
-			http.Error(w, "invalid from date", http.StatusBadRequest)
+			http.Error(w, "invalid to date", http.StatusBadRequest)
+			return
 		}
 		toTime = &t
 	}
 
-	analytics, err := h.db.GetAnalytics(ctx, project.SubDomain, fromTime, toTime)
+	fromKey := "nil"
+	toKey := "nil"
 
+	if fromTime != nil {
+		fromKey = fromTime.Format("2006-01-02")
+	}
+	if toTime != nil {
+		toKey = toTime.Format("2006-01-02")
+	}
+
+	cacheKey := fmt.Sprintf(
+		"analytics:slug:%s:from:%s:to:%s",
+		path,
+		fromKey,
+		toKey,
+	)
+
+	cached, err := h.redis.Get(ctx, cacheKey)
+	if err == nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(cached))
+		return
+	}
+
+	project, err := h.db.GetProjectBySlug(ctx, path)
+	if err != nil {
+		http.Error(w, "project not found", http.StatusInternalServerError)
+		return
+	}
+
+	analytics, err := h.db.GetAnalytics(ctx, project.SubDomain, fromTime, toTime)
 	if err != nil {
 		http.Error(w, "failed to get analytics: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	jsonData, _ := json.Marshal(analytics)
+
+	h.redis.Set(ctx, cacheKey, jsonData, 2*time.Minute)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(analytics)
+	w.Write(jsonData)
 }

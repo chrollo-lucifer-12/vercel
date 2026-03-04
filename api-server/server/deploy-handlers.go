@@ -143,7 +143,9 @@ func (h *ServerClient) deployHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cacheKey := "deployments:project:" + project.SubDomain
+	cacheKeyProject := fmt.Sprintf("project:slug:%s", project.SubDomain)
 	h.redis.Del(ctx, cacheKey)
+	h.redis.Del(ctx, cacheKeyProject)
 
 	response := dto.ToCreateDeploymentResponse("queued", project.SubDomain, depID.String())
 
@@ -227,7 +229,7 @@ func (h *ServerClient) getDeploymentHandler(w http.ResponseWriter, r *http.Reque
 	response := dto.ToGetDeploymentWithLogsResponse(deploymentRes)
 
 	jsonData, _ := json.Marshal(response)
-	h.redis.Set(ctx, cacheKey, jsonData, 30*time.Second)
+	h.redis.Set(ctx, cacheKey, jsonData, 30*time.Minute)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
