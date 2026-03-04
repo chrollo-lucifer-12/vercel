@@ -30,6 +30,6 @@ jobs:
             -e REGION="${{ secrets.REGION }}" \
             -e SUPABASE_ACCESS_KEY="${{ secrets.SUPABASE_ACCESS_KEY }}" \
             -e SUPABASE_SECRET_KEY="${{ secrets.SUPABASE_SECRET_KEY }}" \
-            -e REDIS_URL="${{ secrets.REDIS_URL }}"
+            -e REDIS_URL="${{ secrets.REDIS_URL }}" \
             -e DSN="${{ secrets.DSN }}" \
             sahil1107/build-server:latest
