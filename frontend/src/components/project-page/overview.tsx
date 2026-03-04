@@ -5,6 +5,8 @@ import { TabsContent } from "../ui/tabs";
 import { LogEvent } from "@/lib/types";
 import LogsDisplay from "./logs-display";
 import { formatDate } from "@/lib/utils";
+import Link from "next/link";
+import { clientEnv } from "@/lib/env/client";
 
 const Overview = ({
   logs,
@@ -32,7 +34,11 @@ const Overview = ({
               </Badge>
               <Badge variant={"secondary"}>
                 <LinkIcon data-icon="inline-start" />
-                {subDomain}
+                <Link
+                  href={`http://${subDomain}.${clientEnv.NEXT_PUBLIC_REQUEST_HANDLER}`}
+                >
+                  {subDomain}
+                </Link>
               </Badge>
             </div>
           </div>

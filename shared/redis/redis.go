@@ -116,3 +116,7 @@ func (r *RedisClient) Exists(ctx context.Context, key string) (bool, error) {
 	res, err := r.client.Exists(ctx, key).Result()
 	return res > 0, err
 }
+
+func (r *RedisClient) XRange(ctx context.Context, stream string, start string, stop string) *redis.XMessageSliceCmd {
+	return r.client.XRange(ctx, stream, start, stop)
+}

@@ -44,6 +44,9 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
   const searchParams = useSearchParams();
   const tabValue = searchParams.get("tab");
   if (isLoading) return <ProjectPageSkeleton />;
+
+  console.log(data);
+
   return (
     <div className="mt-6 w-full flex flex-col  gap-4">
       <ProjectTitle
@@ -66,7 +69,7 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
         </TabsList>
         <Overview
           createdAt={data?.Project.created_at!}
-          subDomain={data?.Project.sub_domain!}
+          subDomain={`${data?.Project.sub_domain!}${data?.Deployment.Deployment.sequence}`}
           logs={data?.Deployment.Logs!}
         />
         <Analytics subDomain={data?.Project.sub_domain!} />

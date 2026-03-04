@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/chrollo-lucifer-12/shared/db"
 	"github.com/chrollo-lucifer-12/shared/redis"
@@ -11,6 +12,44 @@ import (
 	"github.com/chrollo-lucifer-12/shared/utils"
 	"github.com/google/uuid"
 )
+
+func pushStreamLogsToDB(
+	ctx context.Context,
+	redisClient *redis.RedisClient,
+	d *db.DB,
+	streamName string,
+	deploymentId uuid.UUID,
+) {
+
+	time.Sleep(2 * time.Second)
+
+	messages, err := redisClient.XRange(ctx, streamName, "-", "+").Result()
+	if err != nil {
+		fmt.Println("Failed to read stream:", err)
+		return
+	}
+
+	var logs []db.LogEvent
+
+	for _, msg := range messages {
+		if m, ok := msg.Values["message"]; ok {
+			logs = append(logs, db.LogEvent{
+				DeploymentID: deploymentId,
+				Log:          m.(string),
+			})
+		}
+	}
+
+	err = d.CreateLogEvents(ctx, &logs)
+	if err != nil {
+		fmt.Println("Failed to save logs to DB:", err)
+		return
+	}
+
+	redisClient.Del(ctx, streamName)
+
+	fmt.Println("Logs finalized and stream deleted")
+}
 
 func main() {
 	ctx := context.Background()
@@ -51,12 +90,6 @@ func main() {
 			fmt.Println("Failed to write log to Redis:", err)
 		}
 	}
-
-	// if err := utils.WriteEnvFile("/home/app/output", userEnv); err != nil {
-	// 	updateDeploymentFunc("FAILED")
-	// 	fmt.Println("Write env file error:", err)
-	// 	return
-	// }
 
 	s, err := storage.NewS3Storage(endPoint, supabaseAccessKey, supabaseSecret, region, bucketID)
 	if err != nil {
