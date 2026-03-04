@@ -91,6 +91,16 @@ func main() {
 		}
 	}
 
+	finalizeLogs := func() {
+		pushStreamLogsToDB(
+			ctx,
+			redisClient,
+			d,
+			streamName,
+			deploymentIdUUID,
+		)
+	}
+
 	s, err := storage.NewS3Storage(endPoint, supabaseAccessKey, supabaseSecret, region, bucketID)
 	if err != nil {
 		updateDeploymentFunc("FAILED")
@@ -105,6 +115,7 @@ func main() {
 	if err != nil {
 		logger("npm install failed: " + err.Error())
 		updateDeploymentFunc("FAILED")
+		finalizeLogs()
 		return
 	}
 
@@ -112,6 +123,7 @@ func main() {
 	if err != nil {
 		logger("npm build failed: " + err.Error())
 		updateDeploymentFunc("FAILED")
+		finalizeLogs()
 		return
 	}
 
@@ -119,12 +131,15 @@ func main() {
 		fmt.Println("build upload failed: " + err.Error())
 		logger("build upload failed: " + err.Error())
 		updateDeploymentFunc("FAILED")
+		finalizeLogs()
 		return
 	}
 
 	logger("build successful!")
 
 	updateDeploymentFunc("SUCCESS")
+
+	finalizeLogs()
 
 	os.Exit(0)
 }
