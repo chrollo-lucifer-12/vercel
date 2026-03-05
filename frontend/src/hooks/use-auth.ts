@@ -130,7 +130,7 @@ export const useSession = () => {
 
       sessionStorage.setItem("session_data", JSON.stringify(sessionData));
 
-      return data.success ? data.access_token : null;
+      return data.success ? sessionData : null;
     },
   });
 };
@@ -144,6 +144,7 @@ export const useProfile = () => {
     queryKey: ["profile"],
     queryFn: async (): Promise<User | null> => {
       try {
+        if (!sessionData?.access_token) return null;
         const res = await profile(sessionData?.access_token!);
         return res;
       } catch (err) {

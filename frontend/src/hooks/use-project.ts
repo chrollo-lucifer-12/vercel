@@ -32,7 +32,7 @@ export const useDeleteProjectMutation = (name: string) => {
     },
     onError: (error) => {
       console.error(error);
-      toast.error("Failed to create project");
+      toast.error("Failed to delete project");
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: PROJECTS_QUERY_KEY([name]) });
@@ -42,6 +42,7 @@ export const useDeleteProjectMutation = (name: string) => {
 };
 
 export const useCreateProjectMutation = () => {
+  const queryClient = getQueryClient();
   const router = useRouter();
   const { data } = useSession();
 
@@ -59,9 +60,9 @@ export const useCreateProjectMutation = () => {
     onSuccess: async (data) => {
       if (data.success && data.subDomain) {
         toast.success("Project created.");
-        // await queryClient.invalidateQueries({
-        //   queryKey: PROJECTS_QUERY_KEY(data.name),
-        // });
+        await queryClient.invalidateQueries({
+          queryKey: PROJECTS_QUERY_KEY([data.subDomain]),
+        });
         router.push(`/project/${data.subDomain}`);
       }
     },
@@ -125,7 +126,6 @@ export const useSearchProjects = (
     initialData,
 
     queryFn: async ({ pageParam = 0 }) => {
-      if (!tokenData?.access_token) throw new Promise(() => {});
       const offset = pageParam * limit;
 
       const res = await getProjects(
@@ -139,9 +139,8 @@ export const useSearchProjects = (
     },
     initialPageParam: 0,
 
-    getPreviousPageParam: (lastPage, allPages) => {
-      if (lastPage?.length < limit) return undefined;
-      return allPages.length ?? 0;
+    getPreviousPageParam: (_, allPages) => {
+      return allPages.length > 1 ? allPages.length - 2 : undefined;
     },
     getNextPageParam: (lastPage, allPages) => {
       if (lastPage?.length < limit) return undefined;

@@ -23,13 +23,13 @@ export const useGetDeployments = (slug: string) => {
 };
 
 export const useCreateDeployment = (slug: string) => {
-  console.log(slug);
   const { data } = useSession();
   const tokenData = data as TokenDetails;
 
   return useMutation({
     mutationKey: ["deployment", slug],
     mutationFn: async () => {
+      if (!tokenData?.access_token) throw new Error("Not authenticated");
       const res = await createDeployment(tokenData?.access_token!, slug);
       return res;
     },
