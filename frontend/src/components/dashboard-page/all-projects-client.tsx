@@ -60,12 +60,12 @@ const AllProjectsClient = ({ name }: { name: string }) => {
         observer.disconnect();
       }
     };
-  }, [observerCallback]);
+  }, [observerCallback, elementRef.current]);
 
-  const projects = data.pages.flatMap((page) => page ?? []);
   if (isPending) {
     return <SkeletonGrid />;
   }
+  const projects = data.pages.flatMap((page) => page ?? []) ?? [];
 
   if (projects.length === 0) {
     return <ProjectEmpty />;
@@ -84,13 +84,12 @@ const AllProjectsClient = ({ name }: { name: string }) => {
           <ProjectCard key={project.id} project={project} name={name} />
         ))}
 
-        <ScrollComponent
-          hasNextPage={hasNextPage}
-          isFetching={isFetchingNextPage}
-        />
-
         <div ref={elementRef} className="h-10 col-span-full" />
       </div>
+      <ScrollComponent
+        hasNextPage={hasNextPage}
+        isFetching={isFetchingNextPage}
+      />
     </div>
   );
 };

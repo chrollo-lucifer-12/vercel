@@ -26,7 +26,6 @@ const ProjectCard = ({ project, name }: { project: Project; name: string }) => {
       onClick={() => {
         router.push(`/project/${project.sub_domain}`);
       }}
-      key={project.id}
       className={`cursor-pointer ${isPending ? "border-orange-500" : ""} hover:bg-[#E6F7F5] hover:text-[#26b3a6] border-2 border-transparent hover:border-[#1A8A81] transition duration-150`}
     >
       <CardHeader>
@@ -41,6 +40,7 @@ const ProjectCard = ({ project, name }: { project: Project; name: string }) => {
               <Link
                 className="hover:underline hover:text-[#26b3a6]"
                 href={project.git_url}
+                onClick={(e) => e.stopPropagation()}
               >
                 {project.git_url}
               </Link>
@@ -48,11 +48,15 @@ const ProjectCard = ({ project, name }: { project: Project; name: string }) => {
           </div>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant={"destructive"} disabled={isPending}>
+              <Button
+                variant={"destructive"}
+                disabled={isPending}
+                onClick={(e) => e.stopPropagation()}
+              >
                 {!isPending ? <TrashIcon size={10} /> : <Spinner />}
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent onClick={(e) => e.stopPropagation()}>
               <AlertDialogHeader>
                 <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                 <AlertDialogDescription>

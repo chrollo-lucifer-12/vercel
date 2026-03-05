@@ -1,5 +1,4 @@
 import AllProjectsClient from "@/components/dashboard-page/all-projects-client";
-import Navbar from "@/components/dashboard-page/navbar";
 import SearchBar from "@/components/dashboard-page/search-bar";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
