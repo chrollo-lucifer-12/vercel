@@ -24,10 +24,10 @@ const Overview = ({
         <CardContent className="flex flex-col gap-6">
           <div className="flex justify-between h-48 items-center">
             <iframe
-              src="https://vercel.com"
-              className="w-[90%] h-full border rounded"
+              src={`https://${subDomain}.${clientEnv.NEXT_PUBLIC_REQUEST_HANDLER}`}
+              className="w-[80%] h-full border rounded"
             />
-            <div className="w-[60%] pl-4 flex flex-col justify-center gap-2">
+            <div className="w-[20%] pl-4 flex flex-col justify-center gap-2">
               <Badge variant={"secondary"}>
                 <CalendarBlankIcon data-icon="inline-start" />
                 {formatDate(createdAt)}
@@ -43,7 +43,7 @@ const Overview = ({
             </div>
           </div>
           <div>
-            <h1 className="text-lg">Build Logs</h1>
+            <p className="text-lg font-medium">Build Logs</p>
             <LogsDisplay logs={logs} />
           </div>
         </CardContent>

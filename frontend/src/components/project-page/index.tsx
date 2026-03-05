@@ -42,10 +42,10 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
   const { data, isLoading } = useProject(subdomain);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const tabValue = searchParams.get("tab");
+  const tabValue = searchParams.get("tab") || "overview";
   if (isLoading) return <ProjectPageSkeleton />;
 
-  console.log(data);
+  if (!isLoading && !data) return <div>Project not found</div>;
 
   return (
     <div className="mt-6 w-full flex flex-col  gap-4">
@@ -67,13 +67,19 @@ const ProjectPage = ({ subdomain }: { subdomain: string }) => {
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="deployments">Deployments</TabsTrigger>
         </TabsList>
-        <Overview
-          createdAt={data?.Project.created_at!}
-          subDomain={`${data?.Project.sub_domain!}${data?.Deployment.Deployment.sequence}`}
-          logs={data?.Deployment.Logs!}
-        />
-        <Analytics subDomain={data?.Project.sub_domain!} />
-        <Deployments subDomain={data?.Project.sub_domain!} />
+        {tabValue === "overview" && (
+          <Overview
+            createdAt={data?.Project.created_at!}
+            subDomain={`${data?.Project.sub_domain!}${data?.Deployment.Deployment.sequence}`}
+            logs={data?.Deployment.Logs!}
+          />
+        )}
+        {tabValue === "analytics" && (
+          <Analytics subDomain={data?.Project.sub_domain!} />
+        )}
+        {tabValue === "deployments" && (
+          <Deployments subDomain={data?.Project.sub_domain!} />
+        )}
       </Tabs>
     </div>
   );

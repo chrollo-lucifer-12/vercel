@@ -1,4 +1,6 @@
 import ProjectPage from "@/components/project-page";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 const Page = async ({ params }: { params: Promise<{ subdomain: string }> }) => {
   const cookieStore = await cookies();

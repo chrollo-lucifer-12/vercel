@@ -3,6 +3,7 @@ import { Button } from "../ui/button";
 import { GithubLogoIcon } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import CreateDeployment from "./create-deployment";
+import { clientEnv } from "@/lib/env/client";
 
 const ProjectTitle = ({
   name,
@@ -21,13 +22,22 @@ const ProjectTitle = ({
         <Button
           variant={"outline"}
           onClick={() => {
-            router.replace(gitUrl);
+            window.open(gitUrl, "_blank");
           }}
         >
           <GithubLogoIcon />
           Repository
         </Button>
-        <Button>Visit</Button>
+        <Button
+          onClick={() =>
+            window.open(
+              `https://${slug}.${clientEnv.NEXT_PUBLIC_REQUEST_HANDLER}`,
+              "_blank",
+            )
+          }
+        >
+          Visit
+        </Button>
         <CreateDeployment slug={slug} />
       </div>
     </div>
