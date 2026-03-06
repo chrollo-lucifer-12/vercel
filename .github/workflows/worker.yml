@@ -30,7 +30,7 @@ jobs:
           cache: true
 
       - name: build worker
-        run: go build -o worker ./worker
+        run: go build -o worker-bin ./worker
 
       - name: run worker
-        run: ./worker
+        run: ./worker-bin
