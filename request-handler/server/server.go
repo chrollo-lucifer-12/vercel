@@ -61,12 +61,18 @@ func (s *ServerClient) trackRequest(subdomain, path, method string, statusCode i
 func (s *ServerClient) handleRequest(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
-	host := strings.Split(r.Host, ":")[0]
-	subdomain := strings.Split(host, ".")[0]
+	parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/"), "/")
 
-	path := r.URL.Path
-	if path == "/" {
-		path = "/index.html"
+	if len(parts) == 0 || parts[0] == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	subdomain := parts[0]
+
+	path := "/index.html"
+	if len(parts) > 1 {
+		path = "/" + strings.Join(parts[1:], "/")
 	}
 
 	objectKey := subdomain + path

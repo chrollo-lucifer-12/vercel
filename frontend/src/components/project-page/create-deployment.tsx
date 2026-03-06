@@ -1,5 +1,5 @@
 import { useCreateDeployment } from "@/hooks/use-deployment";
-import { Button } from "../ui/button";
+import { useEffect, useRef, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -8,12 +8,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "../ui/dialog";
-import { useEffect, useRef, useState } from "react";
+import { Button } from "../ui/button";
 import LogsDisplay from "./logs-display";
 
 const CreateDeployment = ({ slug }: { slug: string }) => {
-  console.log(slug);
   const [logs, setLogs] = useState<string[]>([]);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [open, setOpen] = useState(false);
+
   const { mutate, data } = useCreateDeployment(slug);
   const eventSourceRef = useRef<EventSource | null>(null);
 
@@ -27,35 +29,61 @@ const CreateDeployment = ({ slug }: { slug: string }) => {
     );
 
     es.onmessage = (event) => {
-      console.log(event.data);
+      setIsDeploying(true);
       setLogs((prev) => [...prev, event.data]);
     };
 
     es.onerror = (err) => {
       console.error("SSE error:", err);
       es.close();
+      setIsDeploying(false);
     };
 
     eventSourceRef.current = es;
 
-    return () => {
-      es.close();
-    };
+    return () => es.close();
   }, [data]);
 
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (!isDeploying) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [isDeploying]);
+
   return (
-    <Dialog>
+    <Dialog
+      open={open}
+      onOpenChange={(val) => {
+        if (isDeploying) return;
+        setOpen(val);
+      }}
+    >
       <DialogTrigger asChild>
         <Button>Create Deployment</Button>
       </DialogTrigger>
-      <DialogContent>
+
+      <DialogContent
+        onEscapeKeyDown={(e) => {
+          if (isDeploying) e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          if (isDeploying) e.preventDefault();
+        }}
+      >
         <DialogHeader>
-          <DialogTitle>Crearte New Deployment</DialogTitle>
+          <DialogTitle>Create New Deployment</DialogTitle>
           <DialogDescription>
-            Create a new deployment for your project and see live logs.
+            Create a new deployment and see live logs.
           </DialogDescription>
         </DialogHeader>
-        {/*<LogsDisplay logs={logs} />*/}
+
+        {logs.length > 0 && <LogsDisplay logs={logs} />}
+
         <Button
           onClick={() => {
             if (!slug) return;
@@ -68,5 +96,3 @@ const CreateDeployment = ({ slug }: { slug: string }) => {
     </Dialog>
   );
 };
-
-export default CreateDeployment;
