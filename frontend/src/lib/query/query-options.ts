@@ -1,6 +1,6 @@
 import { signinAction, signupAction, verifyAction } from "@/actions/auth";
 import { mutationOptions, queryOptions } from "@tanstack/react-query";
-import { User } from "./types";
+import { User } from "@/lib/types";
 
 const SIGNUP_KEY = "signup";
 const SIGNIN_KEY = "signin";
