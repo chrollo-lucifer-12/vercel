@@ -2,8 +2,7 @@ name: Go Worker
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "*/5 * * * *"
+
 
 permissions:
   actions: write
