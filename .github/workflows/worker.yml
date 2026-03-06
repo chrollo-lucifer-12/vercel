@@ -3,7 +3,11 @@ name: Go Worker
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "*/5 * * * *"
+
+permissions:
+  actions: write
+  contents: read
 
 jobs:
   worker:
@@ -23,6 +27,10 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "1.22"
+          cache: true
+
+      - name: build worker
+        run: go build -o worker
 
       - name: run worker
-        run: go run worker.go
+        run: ./worker
