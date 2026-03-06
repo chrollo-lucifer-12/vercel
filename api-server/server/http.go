@@ -61,6 +61,9 @@ func (s *ServerClient) setupHTTP() {
 	s.registerRoutes(mux)
 
 	port := os.Getenv("PORT")
+	if port == "" {
+		port = "9000"
+	}
 
 	s.server = &http.Server{
 		Addr:     ":" + port,

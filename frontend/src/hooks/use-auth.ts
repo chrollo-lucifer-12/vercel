@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { getQueryClient } from "@/lib/query/query-provider";
 import { profile } from "@/lib/axios/user";
 import { clientEnv } from "@/lib/env/client";
+import { da } from "zod/v4/locales";
 
 const TOKEN_QUERY_KEY = ["token"];
 const USER_QUERY_KEY = ["user"];
@@ -98,7 +99,7 @@ export const useSession = () => {
       const stored = sessionStorage.getItem("session_data");
 
       if (stored) {
-        const parsed: TokenDetails = JSON.parse(stored);
+        const parsed = JSON.parse(stored);
         if (parsed) {
           const expiresAt = new Date(parsed.access_token_expires_at).getTime();
           const timeLeft = expiresAt - Date.now();
@@ -122,11 +123,13 @@ export const useSession = () => {
 
       const data = JSON.parse(text);
 
-      const sessionData: TokenDetails = {
-        access_token: data.access_token,
-        access_token_expires_at: data.access_token_expires_at,
-        session_id: data.session_id,
-      };
+      const sessionData = data.access_token as TokenDetails;
+
+      // const sessionData: TokenDetails = {
+      //   access_token: data.access_token,
+      //   access_token_expires_at: data.access_token_expires_at,
+      //   session_id: data.session_id,
+      // };
 
       sessionStorage.setItem("session_data", JSON.stringify(sessionData));
 

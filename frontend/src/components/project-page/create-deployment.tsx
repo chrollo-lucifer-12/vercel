@@ -10,9 +10,11 @@ import {
 } from "../ui/dialog";
 import { Button } from "../ui/button";
 import LogsDisplay from "./logs-display";
+import { clientEnv } from "@/lib/env/client";
+import { LogEvent } from "@/lib/types";
 
 const CreateDeployment = ({ slug }: { slug: string }) => {
-  const [logs, setLogs] = useState<string[]>([]);
+  const [logs, setLogs] = useState<LogEvent[]>([]);
   const [isDeploying, setIsDeploying] = useState(false);
   const [open, setOpen] = useState(false);
 
@@ -22,27 +24,57 @@ const CreateDeployment = ({ slug }: { slug: string }) => {
   useEffect(() => {
     if (!data?.deployment_id) return;
 
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+      eventSourceRef.current = null;
+    }
+
     const deploymentId = data.deployment_id;
+    setLogs([]);
+    setIsDeploying(true);
 
     const es = new EventSource(
       `http://localhost:9000/api/v1/deployment/logs/${deploymentId}`,
     );
 
-    es.onmessage = (event) => {
-      setIsDeploying(true);
-      setLogs((prev) => [...prev, event.data]);
+    let cancelled = false;
+
+    es.onopen = () => {
+      console.log("SSE opened");
     };
 
-    es.onerror = (err) => {
-      console.error("SSE error:", err);
-      es.close();
-      setIsDeploying(false);
+    es.onmessage = (event) => {
+      if (cancelled) return;
+      if (event.data === "[DONE]") {
+        es.close();
+        setIsDeploying(false);
+        return;
+      }
+      const raw = JSON.parse(event.data);
+
+      const logEvent: LogEvent = {
+        log: raw.log.message,
+        created_at: raw.time,
+        metadata: raw.log,
+      };
+      setLogs((prev) => [...prev, logEvent]);
+    };
+
+    es.onerror = () => {
+      if (cancelled) return;
+      if (es.readyState === EventSource.CLOSED) {
+        setIsDeploying(false);
+      }
     };
 
     eventSourceRef.current = es;
 
-    return () => es.close();
-  }, [data]);
+    return () => {
+      cancelled = true;
+      es.close();
+      eventSourceRef.current = null;
+    };
+  }, [data?.deployment_id]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -96,3 +128,5 @@ const CreateDeployment = ({ slug }: { slug: string }) => {
     </Dialog>
   );
 };
+
+export default CreateDeployment;

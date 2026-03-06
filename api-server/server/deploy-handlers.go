@@ -282,8 +282,20 @@ func (h *ServerClient) getLiveLogs(w http.ResponseWriter, r *http.Request) {
 
 			for _, msg := range msgs {
 				lastID = msg.ID
-				data := fmt.Sprintf("%v", msg.Values)
-				fmt.Fprintf(w, "data: %s\n\n", data)
+
+				parts := strings.Split(msg.ID, "-")
+				tsMillis, _ := strconv.ParseInt(parts[0], 10, 64)
+
+				t := time.UnixMilli(tsMillis)
+
+				payload := map[string]any{
+					"log":  msg.Values,
+					"time": t,
+				}
+
+				jsonData, _ := json.Marshal(payload)
+
+				fmt.Fprintf(w, "data: %s\n\n", jsonData)
 				flusher.Flush()
 			}
 		}
